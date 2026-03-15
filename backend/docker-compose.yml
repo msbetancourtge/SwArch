@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  auth-db:
+    image: postgres:16
+    container_name: auth-db
+    restart: always
+    environment:
+      POSTGRES_DB: auth_db
+      POSTGRES_USER: mike
+      POSTGRES_PASSWORD: secret
+    ports:
+      - "5433:5432"
+    volumes:
+      - auth_data:/var/lib/postgresql/data
+
+  restaurant-db:
+    image: postgres:16
+    container_name: restaurant-db
+    restart: always
+    environment:
+      POSTGRES_DB: restaurant_db
+      POSTGRES_USER: mike
+      POSTGRES_PASSWORD: secret
+    ports:
+      - "5434:5432"
+    volumes:
+      - restaurant_data:/var/lib/postgresql/data
+
+  geo-db:
+    image: postgis/postgis:16-3.4
+    container_name: geo-db
+    restart: always
+    environment:
+      POSTGRES_DB: geo_db
+      POSTGRES_USER: mike
+      POSTGRES_PASSWORD: secret
+    ports:
+      - "5435:5432"
+    volumes:
+      - geo_data:/var/lib/postgresql/data
+
+  menu-db:
+    image: postgres:16
+    container_name: menu-db
+    restart: always
+    environment:
+      POSTGRES_DB: menu_db
+      POSTGRES_USER: mike
+      POSTGRES_PASSWORD: secret
+    ports:
+      - "5436:5432"
+    volumes:
+      - menu_data:/var/lib/postgresql/data
+
+volumes:
+  auth_data:
+  restaurant_data:
+  geo_data:
+  menu_data:

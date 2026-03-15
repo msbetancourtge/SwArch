@@ -1,0 +1,14 @@
+# Build stage (Java 21 LTS)
+FROM gradle:8.14.0-jdk21 AS builder
+WORKDIR /app
+COPY . .
+RUN gradle clean bootJar
+
+# Run stage (Java 21 LTS)
+FROM eclipse-temurin:21-jre
+WORKDIR /app
+COPY --from=builder /app/build/libs/*.jar app.jar
+EXPOSE 8082
+HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
+	CMD wget -qO- http://localhost:8082/actuator/health || exit 1
+ENTRYPOINT ["java","-jar","/app/app.jar"]
