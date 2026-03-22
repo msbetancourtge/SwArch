@@ -7,7 +7,6 @@ import com.clickmunch.MenuService.dto.MenuCreateRequest;
 import com.clickmunch.MenuService.entity.*;
 import com.clickmunch.MenuService.repository.*;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -28,14 +27,12 @@ public class MenuService {
 
     // Get full menu for a restaurant
     public MenuRestaurantResponse getMenuByRestaurantId(Long restaurantId) {
-        Long resId = restaurantId == null ? null : restaurantId.longValue();
-
-        List<MenuCategory> categories = menuCategoryRepository.findByRestaurantId(resId);
+        List<MenuCategory> categories = menuCategoryRepository.findByRestaurantId(restaurantId);
         if (categories == null || categories.isEmpty()) {
             return new MenuRestaurantResponse(restaurantId, List.of());
         }
 
-        List<Long> categoryIds = categories.stream()
+        List<String> categoryIds = categories.stream()
                 .map(MenuCategory::getId)
                 .collect(Collectors.toList());
 
@@ -44,24 +41,18 @@ public class MenuService {
     }
 
     // Remove all menu items for a restaurant
-    @Transactional
     public void deleteMenuByRestaurantId(Long restaurantId) {
-        Long resId = restaurantId == null ? null : restaurantId;
-
-        List<MenuCategory> categories = menuCategoryRepository.findByRestaurantId(resId);
+        List<MenuCategory> categories = menuCategoryRepository.findByRestaurantId(restaurantId);
         if (categories == null || categories.isEmpty())
             return;
 
-        List<Long> categoryIds = categories.stream()
+        List<String> categoryIds = categories.stream()
                 .map(MenuCategory::getId)
                 .collect(Collectors.toList());
 
-        // Option A: explicitly delete items, then delete categories
+        // Delete items first, then categories (no FK cascade in MongoDB)
         menuItemRepository.deleteAllByCategoryIdIn(categoryIds);
-        menuCategoryRepository.deleteAllByRestaurantId(resId);
-
-        // Option B (alternative): just delete categories and rely on FK ON DELETE CASCADE:
-        // menuCategoryRepository.deleteAllByRestaurantId(restaurantId);
+        menuCategoryRepository.deleteAllByRestaurantId(restaurantId);
     }
 
     // CRUD
@@ -73,9 +64,9 @@ public class MenuService {
         return menuCategoryRepository.save(cat);
     }
 
-    public MenuItem createMenuItem(Long categoryId, MenuItemRequest req) {
+    public MenuItem createMenuItem(String categoryId, MenuItemRequest req) {
         MenuItem item = new MenuItem();
-        item.setCategoryId(categoryId == null ? null : categoryId);
+        item.setCategoryId(categoryId);
         item.setName(req.name());
         item.setDescription(req.description());
         item.setPrice(req.price());
@@ -85,7 +76,6 @@ public class MenuService {
     }
 
     // Create full menu for a restaurant: categories + items
-    @Transactional
     public MenuRestaurantResponse createFullMenu(MenuCreateRequest request) {
 
         Long restaurantId = request.restaurantId();
@@ -102,15 +92,13 @@ public class MenuService {
         List<MenuCategory> categoriesToSave = request.categories().stream()
                 .map(cReq -> {
                     MenuCategory mc = new MenuCategory();
-                    mc.setRestaurantId(restaurantId.longValue());
+                    mc.setRestaurantId(restaurantId);
                     mc.setCategory(cReq.category());
                     return mc;
                 })
                 .collect(Collectors.toList());
 
-        Iterable<MenuCategory> savedCatsIterable = menuCategoryRepository.saveAll(categoriesToSave);
-        List<MenuCategory> savedCats = new ArrayList<>();
-        savedCatsIterable.forEach(savedCats::add);
+        List<MenuCategory> savedCats = menuCategoryRepository.saveAll(categoriesToSave);
 
         // 2) build items with the saved category ids and save
         List<MenuItem> itemsToSave = new ArrayList<>();
@@ -129,38 +117,33 @@ public class MenuService {
             }
         }
 
-        Iterable<MenuItem> savedItemsIterable = menuItemRepository.saveAll(itemsToSave);
-        List<MenuItem> savedItems = new ArrayList<>();
-        savedItemsIterable.forEach(savedItems::add);
+        List<MenuItem> savedItems = menuItemRepository.saveAll(itemsToSave);
 
         // return response with saved items
         return new MenuRestaurantResponse(restaurantId, savedItems);
     }
 
-    public MenuCategory findMenuCategoryById(Long id) {
+    public MenuCategory findMenuCategoryById(String id) {
         return menuCategoryRepository.findById(id).orElseThrow(() -> new RuntimeException("Menu Category not found"));
     }
 
-    public MenuItem findMenuItemById(Long id) {
+    public MenuItem findMenuItemById(String id) {
         return menuItemRepository.findById(id).orElseThrow(() -> new RuntimeException("Menu Item not found"));
     }
 
     public List<MenuItem> findMenuItemsByRestaurantId(Long restaurantId) {
-        Long resId = restaurantId == null ? null : restaurantId;
-
-        List<MenuCategory> categories = menuCategoryRepository.findByRestaurantId(resId);
+        List<MenuCategory> categories = menuCategoryRepository.findByRestaurantId(restaurantId);
         if (categories == null || categories.isEmpty())
             throw new RuntimeException("Invalid restaurant ID or restaurant has no Item Categries.");
 
-        List<Long> categoryIds = categories.stream()
+        List<String> categoryIds = categories.stream()
                 .map(MenuCategory::getId)
                 .collect(Collectors.toList());     
 
         return menuItemRepository.findAllByCategoryIdIn(categoryIds);
     }
 
-    @Transactional
-    public MenuCategory updateMenuCategory(Long menuCategoryId, MenuCategoryRequest req) {
+    public MenuCategory updateMenuCategory(String menuCategoryId, MenuCategoryRequest req) {
         MenuCategory existing = menuCategoryRepository.findById(menuCategoryId)
                     .orElseThrow(() -> new RuntimeException("Menu Category not found."));
     
@@ -172,8 +155,7 @@ public class MenuService {
         return menuCategoryRepository.save(updated);
     }
 
-    @Transactional
-    public MenuItem updateMenuItem(Long menuItemId, MenuItemRequest req) {
+    public MenuItem updateMenuItem(String menuItemId, MenuItemRequest req) {
         MenuItem existing = menuItemRepository.findById(menuItemId)
                 .orElseThrow(() -> new RuntimeException("Menu Item not found"));
         MenuItem updated = new MenuItem();
@@ -187,11 +169,16 @@ public class MenuService {
         return menuItemRepository.save(updated);
     }
 
-    public void deleteMenuCategory(Long menuCategoryId) {
+    public void deleteMenuCategory(String menuCategoryId) {
+        // Delete associated items first (no FK cascade in MongoDB)
+        List<MenuItem> items = menuItemRepository.findByCategoryId(menuCategoryId);
+        if (items != null && !items.isEmpty()) {
+            menuItemRepository.deleteAll(items);
+        }
         menuCategoryRepository.deleteById(menuCategoryId);
     }
 
-    public void deleteMenuItem(Long menuItemId) {
+    public void deleteMenuItem(String menuItemId) {
         menuItemRepository.deleteById(menuItemId);
     }
 }

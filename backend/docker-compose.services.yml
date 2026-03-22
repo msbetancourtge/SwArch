@@ -74,13 +74,12 @@ services:
     ports:
       - "8084:8084"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://menu-db:5432/menu_db
-      SPRING_DATASOURCE_USERNAME: mike
-      SPRING_DATASOURCE_PASSWORD: secret
+      SPRING_DATA_MONGODB_URI: mongodb://mike:secret@menu-db:27017/menu_db?authSource=admin
+      SPRING_DATA_MONGODB_DATABASE: menu_db
       RESTAURANT_SERVICE_URL: http://restaurantservice:8082
     depends_on:
       menu-db:
-        condition: service_healthy
+        condition: service_started
       restaurantservice:
         condition: service_healthy
     networks:

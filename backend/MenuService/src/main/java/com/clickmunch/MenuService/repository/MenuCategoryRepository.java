@@ -1,25 +1,21 @@
 package com.clickmunch.MenuService.repository;
 
-import com.clickmunch.MenuService.entity.MenuCategory;
-import org.springframework.data.jdbc.repository.query.Query;
-import org.springframework.data.repository.ListCrudRepository;
-import org.springframework.data.repository.query.Param;
-import org.springframework.stereotype.Repository;
-
 import java.util.Collection;
 import java.util.List;
 
+import org.springframework.data.mongodb.repository.MongoRepository;
+import org.springframework.stereotype.Repository;
+
+import com.clickmunch.MenuService.entity.MenuCategory;
+
 @Repository
-public interface MenuCategoryRepository extends ListCrudRepository<MenuCategory, Long> {
+public interface MenuCategoryRepository extends MongoRepository<MenuCategory, String> {
 
-    // Find categories for a restaurant, ordered by name
-    @Query("SELECT * FROM menu_categories WHERE restaurant_id = :restaurantId ORDER BY name")
-    List<MenuCategory> findByRestaurantId(@Param("restaurantId") Long restaurantId);
+    List<MenuCategory> findByRestaurantIdOrderByCategory(Long restaurantId);
 
-    // Bulk lookup by restaurant ids
+    List<MenuCategory> findByRestaurantId(Long restaurantId);
+
     List<MenuCategory> findAllByRestaurantIdIn(Collection<Long> restaurantIds);
 
-    // Delete all categories for a restaurant (FK ON DELETE CASCADE will remove items)
-    @Query("DELETE FROM menu_categories WHERE restaurant_id = :restaurantId")
-    void deleteAllByRestaurantId(@Param("restaurantId") Long restaurantId);
+    void deleteAllByRestaurantId(Long restaurantId);
 }

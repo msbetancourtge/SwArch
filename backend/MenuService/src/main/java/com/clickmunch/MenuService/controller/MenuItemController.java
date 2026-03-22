@@ -1,28 +1,33 @@
 package com.clickmunch.MenuService.controller;
 
+import java.util.List;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
+
 import com.clickmunch.MenuService.dto.MenuCreateRequest;
 import com.clickmunch.MenuService.dto.MenuItemRequest;
 import com.clickmunch.MenuService.dto.MenuRestaurantResponse;
 import com.clickmunch.MenuService.entity.MenuItem;
 import com.clickmunch.MenuService.service.MenuService;
 
-import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.web.bind.annotation.RequestBody;
-import jakarta.validation.Valid;
-
-import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
-
-import java.util.List;
-
-// OpenAPI imports
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 
 @RestController
 @Tag(name = "MenuItems", description = "Menu item operations.")
@@ -47,7 +52,7 @@ public class MenuItemController {
     @ResponseStatus(HttpStatus.CREATED)
     public MenuItem createMenuItem(
         @Parameter(description = "ID of the category to create the item in", required = true)
-        @PathVariable Long categoryId,
+        @PathVariable String categoryId,
         @io.swagger.v3.oas.annotations.parameters.RequestBody(
             description = "Menu item create request",
             required = true,
@@ -68,7 +73,7 @@ public class MenuItemController {
     @GetMapping("/items/{itemId}")
     public MenuItem getMenuItem(
         @Parameter(description = "ID of the menu item", required = true)
-        @PathVariable Long itemId) {
+        @PathVariable String itemId) {
         try {
             return menuService.findMenuItemById(itemId);
         } catch (RuntimeException e) {
@@ -90,7 +95,7 @@ public class MenuItemController {
     @PutMapping("/items/{itemId}")
     public MenuItem updateMenuItem(
         @Parameter(description = "ID of the menu item", required = true)
-        @PathVariable Long itemId,
+        @PathVariable String itemId,
         @io.swagger.v3.oas.annotations.parameters.RequestBody(
             description = "Menu item update request",
             required = true,
@@ -114,7 +119,7 @@ public class MenuItemController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteMenuItem(
         @Parameter(description = "ID of the menu item", required = true)
-        @PathVariable Long itemId) {
+        @PathVariable String itemId) {
         menuService.deleteMenuItem(itemId);
     }
 

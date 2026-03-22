@@ -35,18 +35,11 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
 	// Provides Spring MVC, embedded servlet container and common web utilities for building REST APIs.
 	implementation 'org.springframework.boot:spring-boot-starter-web'
-	// Brings Spring's JDBC support and common JDBC utilities for working with relational databases.
-	implementation 'org.springframework.boot:spring-boot-starter-jdbc'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
-	// Spring Data JDBC support for simple, JDBC-based repositories and mapping.
-	implementation 'org.springframework.boot:spring-boot-starter-data-jdbc'
+	// Spring Data MongoDB support for document-based repositories and mapping.
+	implementation 'org.springframework.boot:spring-boot-starter-data-mongodb'
 	// Developer conveniences: automatic restart, live reload and other development-time features.
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
-
-	//PostgreSQL JDBC driver required at runtime to connect to a Postgres database.
-	runtimeOnly 'org.postgresql:postgresql'
-	// Helper for launching Docker Compose services during integration tests or local development.
-	//runtimeOnly 'org.springframework.boot:spring-boot-docker-compose'
 
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
@@ -58,7 +51,6 @@ dependencies {
 	// Testing libraries:
 	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-validation-test'
-	testImplementation 'org.springframework.boot:spring-boot-starter-data-jdbc-test'
 
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.junit.jupiter:junit-jupiter:5.8.1'

@@ -1,8 +1,8 @@
 package com.clickmunch.RestaurantService.dto;
 
 public record MenuItemResponse(
-        Long id,
-        Long categoryId,
+        String id,
+        String categoryId,
         String name,
         String description,
         Double price,

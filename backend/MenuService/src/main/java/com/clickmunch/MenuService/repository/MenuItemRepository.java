@@ -1,31 +1,24 @@
 package com.clickmunch.MenuService.repository;
 
-import com.clickmunch.MenuService.entity.MenuItem;
-
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
-import org.springframework.data.jdbc.repository.query.Query;
-import org.springframework.data.repository.ListCrudRepository;
-import org.springframework.data.repository.query.Param;
+import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.stereotype.Repository;
 
+import com.clickmunch.MenuService.entity.MenuItem;
+
 @Repository
-public interface MenuItemRepository extends ListCrudRepository<MenuItem, Long> {
+public interface MenuItemRepository extends MongoRepository<MenuItem, String> {
 
-    // Retrieve items for a category, ordered by name
-    @Query("SELECT * FROM menu_items WHERE category_id = :categoryId ORDER BY name")
-    List<MenuItem> findByCategoryId(@Param("categoryId") Long categoryId);
+    List<MenuItem> findByCategoryIdOrderByName(String categoryId);
 
-    // Bulk lookup by category ids
-    List<MenuItem> findAllByCategoryIdIn(Collection<Long> categoryIds);
+    List<MenuItem> findByCategoryId(String categoryId);
 
-    // Optional helper to validate item belongs to a category
-    @Query("SELECT * FROM menu_items WHERE id = :id AND category_id = :categoryId")
-    Optional<MenuItem> findByIdAndCategoryId(@Param("id") Long id, @Param("categoryId") Long categoryId);
+    List<MenuItem> findAllByCategoryIdIn(Collection<String> categoryIds);
 
-        // Delete all items for a set of category ids
-    @Query("DELETE FROM menu_items WHERE category_id IN (:categoryIds)")
-    void deleteAllByCategoryIdIn(@Param("categoryIds") Collection<Long> categoryIds);
+    Optional<MenuItem> findByIdAndCategoryId(String id, String categoryId);
+
+    void deleteAllByCategoryIdIn(Collection<String> categoryIds);
 }

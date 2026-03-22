@@ -41,17 +41,17 @@ services:
       - geo_data:/var/lib/postgresql/data
 
   menu-db:
-    image: postgres:16
+    image: mongo:7
     container_name: menu-db
     restart: always
     environment:
-      POSTGRES_DB: menu_db
-      POSTGRES_USER: mike
-      POSTGRES_PASSWORD: secret
+      MONGO_INITDB_ROOT_USERNAME: mike
+      MONGO_INITDB_ROOT_PASSWORD: secret
+      MONGO_INITDB_DATABASE: menu_db
     ports:
-      - "5436:5432"
+      - "27018:27017"
     volumes:
-      - menu_data:/var/lib/postgresql/data
+      - menu_data:/data/db
 
 volumes:
   auth_data:

@@ -1,5 +1,29 @@
 package com.clickmunch.MenuService.service;
 
+import java.math.BigDecimal;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyLong;
+import org.mockito.Captor;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import org.mockito.junit.jupiter.MockitoExtension;
+
 import com.clickmunch.MenuService.dto.MenuCategoryRequest;
 import com.clickmunch.MenuService.dto.MenuCreateRequest;
 import com.clickmunch.MenuService.dto.MenuItemRequest;
@@ -9,28 +33,6 @@ import com.clickmunch.MenuService.entity.MenuCategory;
 import com.clickmunch.MenuService.entity.MenuItem;
 import com.clickmunch.MenuService.repository.MenuCategoryRepository;
 import com.clickmunch.MenuService.repository.MenuItemRepository;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Captor;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.math.BigDecimal;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyCollection;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class MenuServiceTest {
@@ -50,7 +52,7 @@ class MenuServiceTest {
     @Captor
     private ArgumentCaptor<List<MenuItem>> itemListCaptor;
 
-    private MenuCategory createMenuCategory(Long id, Long restaurantId, Category category) {
+    private MenuCategory createMenuCategory(String id, Long restaurantId, Category category) {
         MenuCategory mc = new MenuCategory();
         mc.setId(id);
         mc.setRestaurantId(restaurantId);
@@ -58,7 +60,7 @@ class MenuServiceTest {
         return mc;
     }
 
-    private MenuItem createMenuItem(Long id, Long categoryId, String name, BigDecimal price) {
+    private MenuItem createMenuItem(String id, String categoryId, String name, BigDecimal price) {
         MenuItem item = new MenuItem();
         item.setId(id);
         item.setCategoryId(categoryId);
@@ -77,12 +79,12 @@ class MenuServiceTest {
         @DisplayName("Should return menu with items when restaurant has categories")
         void shouldReturnMenuWithItems() {
             Long restaurantId = 1L;
-            MenuCategory category = createMenuCategory(10L, restaurantId, Category.PLATO);
-            MenuItem item = createMenuItem(100L, 10L, "Burger", BigDecimal.valueOf(9.99));
+            MenuCategory category = createMenuCategory("cat10", restaurantId, Category.PLATO);
+            MenuItem item = createMenuItem("item100", "cat10", "Burger", BigDecimal.valueOf(9.99));
 
             when(menuCategoryRepository.findByRestaurantId(restaurantId))
                     .thenReturn(List.of(category));
-            when(menuItemRepository.findAllByCategoryIdIn(List.of(10L)))
+            when(menuItemRepository.findAllByCategoryIdIn(List.of("cat10")))
                     .thenReturn(List.of(item));
 
             MenuRestaurantResponse response = menuService.getMenuByRestaurantId(restaurantId);
@@ -91,7 +93,7 @@ class MenuServiceTest {
             assertThat(response.menuItems()).hasSize(1);
             assertThat(response.menuItems().get(0).getName()).isEqualTo("Burger");
             verify(menuCategoryRepository).findByRestaurantId(restaurantId);
-            verify(menuItemRepository).findAllByCategoryIdIn(List.of(10L));
+            verify(menuItemRepository).findAllByCategoryIdIn(List.of("cat10"));
         }
 
         @Test
@@ -129,14 +131,14 @@ class MenuServiceTest {
         @DisplayName("Should delete all items and categories for restaurant")
         void shouldDeleteAllItemsAndCategories() {
             Long restaurantId = 1L;
-            MenuCategory category = createMenuCategory(10L, restaurantId, Category.BEBIDA);
+            MenuCategory category = createMenuCategory("cat10", restaurantId, Category.BEBIDA);
 
             when(menuCategoryRepository.findByRestaurantId(restaurantId))
                     .thenReturn(List.of(category));
 
             menuService.deleteMenuByRestaurantId(restaurantId);
 
-            verify(menuItemRepository).deleteAllByCategoryIdIn(List.of(10L));
+            verify(menuItemRepository).deleteAllByCategoryIdIn(List.of("cat10"));
             verify(menuCategoryRepository).deleteAllByRestaurantId(restaurantId);
         }
 
@@ -162,13 +164,13 @@ class MenuServiceTest {
         @DisplayName("Should create and return menu category")
         void shouldCreateMenuCategory() {
             MenuCategoryRequest request = new MenuCategoryRequest(1L, Category.ENTRADA);
-            MenuCategory savedCategory = createMenuCategory(10L, 1L, Category.ENTRADA);
+            MenuCategory savedCategory = createMenuCategory("cat10", 1L, Category.ENTRADA);
 
             when(menuCategoryRepository.save(any(MenuCategory.class))).thenReturn(savedCategory);
 
             MenuCategory result = menuService.createMenuCategory(request);
 
-            assertThat(result.getId()).isEqualTo(10L);
+            assertThat(result.getId()).isEqualTo("cat10");
             assertThat(result.getRestaurantId()).isEqualTo(1L);
             assertThat(result.getCategory()).isEqualTo(Category.ENTRADA);
             verify(menuCategoryRepository).save(any(MenuCategory.class));
@@ -182,17 +184,17 @@ class MenuServiceTest {
         @Test
         @DisplayName("Should create and return menu item")
         void shouldCreateMenuItem() {
-            Long categoryId = 10L;
+            String categoryId = "cat10";
             MenuItemRequest request = new MenuItemRequest(
                     "Pizza", "Delicious pizza", BigDecimal.valueOf(12.99), "http://example.com/pizza.jpg"
             );
-            MenuItem savedItem = createMenuItem(100L, categoryId, "Pizza", BigDecimal.valueOf(12.99));
+            MenuItem savedItem = createMenuItem("item100", categoryId, "Pizza", BigDecimal.valueOf(12.99));
 
             when(menuItemRepository.save(any(MenuItem.class))).thenReturn(savedItem);
 
             MenuItem result = menuService.createMenuItem(categoryId, request);
 
-            assertThat(result.getId()).isEqualTo(100L);
+            assertThat(result.getId()).isEqualTo("item100");
             assertThat(result.getCategoryId()).isEqualTo(categoryId);
             assertThat(result.getName()).isEqualTo("Pizza");
             verify(menuItemRepository).save(any(MenuItem.class));
@@ -215,8 +217,8 @@ class MenuServiceTest {
             );
             MenuCreateRequest request = new MenuCreateRequest(restaurantId, List.of(categoryReq));
 
-            MenuCategory savedCategory = createMenuCategory(10L, restaurantId, Category.ENSALADA);
-            MenuItem savedItem = createMenuItem(100L, 10L, "Salad", BigDecimal.valueOf(7.99));
+            MenuCategory savedCategory = createMenuCategory("cat10", restaurantId, Category.ENSALADA);
+            MenuItem savedItem = createMenuItem("item100", "cat10", "Salad", BigDecimal.valueOf(7.99));
 
             when(menuCategoryRepository.saveAll(anyList())).thenReturn(List.of(savedCategory));
             when(menuItemRepository.saveAll(anyList())).thenReturn(List.of(savedItem));
@@ -272,7 +274,7 @@ class MenuServiceTest {
         @Test
         @DisplayName("Should return category when found")
         void shouldReturnCategoryWhenFound() {
-            Long id = 10L;
+            String id = "cat10";
             MenuCategory category = createMenuCategory(id, 1L, Category.POSTRE);
             when(menuCategoryRepository.findById(id)).thenReturn(Optional.of(category));
 
@@ -285,7 +287,7 @@ class MenuServiceTest {
         @Test
         @DisplayName("Should throw exception when category not found")
         void shouldThrowWhenCategoryNotFound() {
-            Long id = 999L;
+            String id = "cat999";
             when(menuCategoryRepository.findById(id)).thenReturn(Optional.empty());
 
             assertThatThrownBy(() -> menuService.findMenuCategoryById(id))
@@ -301,8 +303,8 @@ class MenuServiceTest {
         @Test
         @DisplayName("Should return item when found")
         void shouldReturnItemWhenFound() {
-            Long id = 100L;
-            MenuItem item = createMenuItem(id, 10L, "Steak", BigDecimal.valueOf(24.99));
+            String id = "item100";
+            MenuItem item = createMenuItem(id, "cat10", "Steak", BigDecimal.valueOf(24.99));
             when(menuItemRepository.findById(id)).thenReturn(Optional.of(item));
 
             MenuItem result = menuService.findMenuItemById(id);
@@ -314,7 +316,7 @@ class MenuServiceTest {
         @Test
         @DisplayName("Should throw exception when item not found")
         void shouldThrowWhenItemNotFound() {
-            Long id = 999L;
+            String id = "item999";
             when(menuItemRepository.findById(id)).thenReturn(Optional.empty());
 
             assertThatThrownBy(() -> menuService.findMenuItemById(id))
@@ -331,12 +333,12 @@ class MenuServiceTest {
         @DisplayName("Should return items for restaurant")
         void shouldReturnItemsForRestaurant() {
             Long restaurantId = 1L;
-            MenuCategory category = createMenuCategory(10L, restaurantId, Category.ADICIONAL);
-            MenuItem item = createMenuItem(100L, 10L, "Fries", BigDecimal.valueOf(3.99));
+            MenuCategory category = createMenuCategory("cat10", restaurantId, Category.ADICIONAL);
+            MenuItem item = createMenuItem("item100", "cat10", "Fries", BigDecimal.valueOf(3.99));
 
             when(menuCategoryRepository.findByRestaurantId(restaurantId))
                     .thenReturn(List.of(category));
-            when(menuItemRepository.findAllByCategoryIdIn(List.of(10L)))
+            when(menuItemRepository.findAllByCategoryIdIn(List.of("cat10")))
                     .thenReturn(List.of(item));
 
             List<MenuItem> result = menuService.findMenuItemsByRestaurantId(restaurantId);
@@ -365,7 +367,7 @@ class MenuServiceTest {
         @Test
         @DisplayName("Should update category successfully")
         void shouldUpdateCategory() {
-            Long id = 10L;
+            String id = "cat10";
             MenuCategory existing = createMenuCategory(id, 1L, Category.ENTRADA);
             MenuCategoryRequest request = new MenuCategoryRequest(1L, Category.PLATO);
 
@@ -382,7 +384,7 @@ class MenuServiceTest {
         @Test
         @DisplayName("Should throw exception when category not found")
         void shouldThrowWhenCategoryNotFound() {
-            Long id = 999L;
+            String id = "cat999";
             when(menuCategoryRepository.findById(id)).thenReturn(Optional.empty());
 
             assertThatThrownBy(() -> menuService.updateMenuCategory(id,
@@ -399,8 +401,8 @@ class MenuServiceTest {
         @Test
         @DisplayName("Should update item with all fields")
         void shouldUpdateItemWithAllFields() {
-            Long id = 100L;
-            MenuItem existing = createMenuItem(id, 10L, "Old Name", BigDecimal.valueOf(9.99));
+            String id = "item100";
+            MenuItem existing = createMenuItem(id, "cat10", "Old Name", BigDecimal.valueOf(9.99));
             MenuItemRequest request = new MenuItemRequest(
                     "New Name", "New Description", BigDecimal.valueOf(14.99), "http://new.jpg"
             );
@@ -419,8 +421,8 @@ class MenuServiceTest {
         @Test
         @DisplayName("Should preserve existing values when request fields are null")
         void shouldPreserveExistingWhenNull() {
-            Long id = 100L;
-            MenuItem existing = createMenuItem(id, 10L, "Original", BigDecimal.valueOf(9.99));
+            String id = "item100";
+            MenuItem existing = createMenuItem(id, "cat10", "Original", BigDecimal.valueOf(9.99));
             MenuItemRequest request = new MenuItemRequest(null, null, null, null);
 
             when(menuItemRepository.findById(id)).thenReturn(Optional.of(existing));
@@ -441,7 +443,9 @@ class MenuServiceTest {
         @Test
         @DisplayName("Should delete menu category")
         void shouldDeleteMenuCategory() {
-            Long id = 10L;
+            String id = "cat10";
+
+            when(menuItemRepository.findByCategoryId(id)).thenReturn(List.of());
 
             menuService.deleteMenuCategory(id);
 
@@ -451,7 +455,7 @@ class MenuServiceTest {
         @Test
         @DisplayName("Should delete menu item")
         void shouldDeleteMenuItem() {
-            Long id = 100L;
+            String id = "item100";
 
             menuService.deleteMenuItem(id);
 

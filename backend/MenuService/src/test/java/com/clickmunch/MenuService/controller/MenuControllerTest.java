@@ -1,24 +1,24 @@
 package com.clickmunch.MenuService.controller;
 
-import com.clickmunch.MenuService.dto.MenuCategoryRequest;
-import com.clickmunch.MenuService.dto.MenuCreateRequest;
-import com.clickmunch.MenuService.dto.MenuItemRequest;
-import com.clickmunch.MenuService.entity.MenuCategory;
-import com.clickmunch.MenuService.entity.MenuItem;
-import com.clickmunch.MenuService.service.MenuService;
+import java.math.BigDecimal;
+
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import com.clickmunch.MenuService.dto.MenuCategoryRequest;
+import com.clickmunch.MenuService.dto.MenuItemRequest;
+import com.clickmunch.MenuService.entity.Category;
+import com.clickmunch.MenuService.entity.MenuCategory;
+import com.clickmunch.MenuService.entity.MenuItem;
+import com.clickmunch.MenuService.service.MenuService;
 
 @WebMvcTest({MenuItemController.class, MenuCategoryController.class})
 class MenuControllerTest {
@@ -26,26 +26,38 @@ class MenuControllerTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @MockBean
+    @MockitoBean
     private MenuService menuService;
 
     @Test
     void createCategory_returnsCreated() throws Exception {
+        MenuCategory cat = new MenuCategory();
+        cat.setId("cat1");
+        cat.setRestaurantId(1L);
+        cat.setCategory(Category.ENTRADA);
+
         Mockito.when(menuService.createMenuCategory(Mockito.any(MenuCategoryRequest.class)))
-                .thenReturn(new MenuCategory(1L, 1L, "Main", "DESC"));
+                .thenReturn(cat);
 
         mockMvc.perform(post("/api/menus/categories")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"restaurantId\":1,\"name\":\"Main\",\"description\":\"DESC\"}"))
+                .content("{\"restaurantId\":1,\"category\":\"ENTRADA\"}"))
                 .andExpect(status().isCreated());
     }
 
     @Test
     void createItem_returnsCreated() throws Exception {
-        Mockito.when(menuService.createMenuItem(Mockito.eq(1L), Mockito.any(MenuItemRequest.class)))
-                .thenReturn(new MenuItem(1L, 1L, "Burger", "Tasty", 9.99));
+        MenuItem item = new MenuItem();
+        item.setId("item1");
+        item.setCategoryId("cat1");
+        item.setName("Burger");
+        item.setDescription("Tasty");
+        item.setPrice(BigDecimal.valueOf(9.99));
 
-        mockMvc.perform(post("/api/menus/categories/1/items")
+        Mockito.when(menuService.createMenuItem(Mockito.eq("cat1"), Mockito.any(MenuItemRequest.class)))
+                .thenReturn(item);
+
+        mockMvc.perform(post("/api/menus/categories/cat1/items")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"name\":\"Burger\",\"description\":\"Tasty\",\"price\":9.99}"))
                 .andExpect(status().isCreated());
