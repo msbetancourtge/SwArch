@@ -6,6 +6,7 @@ public record RestaurantResponse(
         String description,
         String phone,
         String email,
+        String imageUrl,
         Long locationId
 ) {
 }

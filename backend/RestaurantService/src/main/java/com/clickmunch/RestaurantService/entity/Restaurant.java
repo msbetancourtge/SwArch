@@ -1,8 +1,9 @@
 package com.clickmunch.RestaurantService.entity;
 
-import lombok.Data;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Table;
+
+import lombok.Data;
 
 @Data
 @Table("restaurants")
@@ -15,5 +16,6 @@ public class Restaurant {
     private String description;
     private String phone;
     private String email;
+    private String imageUrl;
     private Long locationId;
 }

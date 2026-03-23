@@ -9,6 +9,7 @@ public record RestaurantDetailsResponse(
         Double latitude,
         Double longitude,
         String description,
+        String imageUrl,
         List<MenuCategoryResponse> menuCategories
 ) {
 }

@@ -6,6 +6,7 @@ public record CreateRestaurantRequest(
         String description,
         String phone,
         String email,
+        String imageUrl,
         Double latitude,
         Double longitude
 ) {

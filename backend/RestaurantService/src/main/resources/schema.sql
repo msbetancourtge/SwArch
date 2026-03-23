@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS restaurants (
        description TEXT,
        phone VARCHAR(30),
        email VARCHAR(100),
+       image_url TEXT,
        location_id BIGINT NOT NULL,
        created_at TIMESTAMP DEFAULT NOW()
 );

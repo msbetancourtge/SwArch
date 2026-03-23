@@ -1,15 +1,20 @@
 package com.clickmunch.RestaurantService.service;
 
-import com.clickmunch.RestaurantService.client.AuthClient;
-import com.clickmunch.RestaurantService.client.GeoClient;
-import com.clickmunch.RestaurantService.client.MenuClient;
-import com.clickmunch.RestaurantService.dto.*;
-import com.clickmunch.RestaurantService.entity.Restaurant;
-import com.clickmunch.RestaurantService.repository.RestaurantRepository;
+import java.util.List;
+
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 
-import java.util.List;
+import com.clickmunch.RestaurantService.client.AuthClient;
+import com.clickmunch.RestaurantService.client.GeoClient;
+import com.clickmunch.RestaurantService.client.MenuClient;
+import com.clickmunch.RestaurantService.dto.AuthUserResponse;
+import com.clickmunch.RestaurantService.dto.CreateRestaurantRequest;
+import com.clickmunch.RestaurantService.dto.LocationDto;
+import com.clickmunch.RestaurantService.dto.RestaurantDetailsResponse;
+import com.clickmunch.RestaurantService.dto.RestaurantResponse;
+import com.clickmunch.RestaurantService.entity.Restaurant;
+import com.clickmunch.RestaurantService.repository.RestaurantRepository;
 
 @Service
 public class RestaurantService {
@@ -48,6 +53,7 @@ public class RestaurantService {
         restaurant.setDescription(request.description());
         restaurant.setPhone(request.phone());
         restaurant.setEmail(request.email());
+        restaurant.setImageUrl(request.imageUrl());
         restaurant.setLocationId(locationId);
 
         var savedRestaurant = restaurantRepository.save(restaurant);
@@ -58,6 +64,7 @@ public class RestaurantService {
                 savedRestaurant.getDescription(),
                 savedRestaurant.getPhone(),
                 savedRestaurant.getEmail(),
+                savedRestaurant.getImageUrl(),
                 savedRestaurant.getLocationId()
         );
     }
@@ -72,6 +79,7 @@ public class RestaurantService {
                 restaurant.getDescription(),
                 restaurant.getPhone(),
                 restaurant.getEmail(),
+                restaurant.getImageUrl(),
                 restaurant.getLocationId()
         );
     }
@@ -84,6 +92,7 @@ public class RestaurantService {
                 restaurant.getDescription(),
                 restaurant.getPhone(),
                 restaurant.getEmail(),
+                restaurant.getImageUrl(),
                 restaurant.getLocationId()
         )).toList();
     }
@@ -101,6 +110,7 @@ public class RestaurantService {
                     restaurant.getDescription(),
                     restaurant.getPhone(),
                     restaurant.getEmail(),
+                    restaurant.getImageUrl(),
                     restaurant.getLocationId()
             )).toList();
         }
@@ -120,6 +130,7 @@ public class RestaurantService {
                 geoClient.getLocationById(restaurant.getId()).latitude(),
                 geoClient.getLocationById(restaurant.getId()).longitude(),
                 restaurant.getDescription(),
+                restaurant.getImageUrl(),
                 menuCategories
         );
     }
