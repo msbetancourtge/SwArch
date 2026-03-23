@@ -29,9 +29,10 @@ logging:
 
 management:
   endpoints:
+    web:
+      exposure:
+        include: health
     jmx:
       exposure:
         exclude: "*"
-  server:
-    port: -1
 

@@ -1,5 +1,6 @@
 package com.clickmunch.APIGateway.config;
 
+import org.springframework.beans.factory.annotation.Value;
 import static org.springframework.cloud.gateway.server.mvc.filter.BeforeFilterFunctions.rewritePath;
 import static org.springframework.cloud.gateway.server.mvc.filter.BeforeFilterFunctions.uri;
 import static org.springframework.cloud.gateway.server.mvc.handler.GatewayRouterFunctions.route;
@@ -19,24 +20,33 @@ import com.clickmunch.APIGateway.security.JwtTokenUtil;
 @Configuration
 public class RouteConfig {
 
+    @Value("${services.auth.url:http://localhost:8081}")
+    private String authServiceUrl;
+
+    @Value("${services.restaurant.url:http://localhost:8082}")
+    private String restaurantServiceUrl;
+
+    @Value("${services.menu.url:http://localhost:8084}")
+    private String menuServiceUrl;
+
     @Bean
     public RouterFunction<ServerResponse> routes(JwtTokenUtil jwtTokenUtil) {
         JwtAuthenticationFilter jwtAuthenticationFilter = new JwtAuthenticationFilter(jwtTokenUtil);
 
         RouterFunction<ServerResponse> auth = route("auth")
                 .route(path("/auth/**"), http())
-                .before(uri("http://localhost:8081"))
+                .before(uri(authServiceUrl))
                 .before(rewritePath("/auth/(?<segment>.*)", "/api/auth/${segment}"))
                 .build();
         RouterFunction<ServerResponse> restaurant = route("restaurant")
                 .route(path("/restaurant/**"), http())
-                .before(uri("http://localhost:8082"))
+                .before(uri(restaurantServiceUrl))
                 .before(rewritePath("/restaurant/(?<segment>.*)", "/api/restaurants/${segment}"))
                 .filter(jwtAuthenticationFilter)
                 .build();
         RouterFunction<ServerResponse> menu = route("menu")
                 .route(path("/menu/**"), http())
-                .before(uri("http://localhost:8084"))
+                .before(uri(menuServiceUrl))
                 .before(rewritePath("/menu/(?<segment>.*)", "/api/menus/${segment}"))
                 .filter(jwtAuthenticationFilter)
                 .build();
