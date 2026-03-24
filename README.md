@@ -2,7 +2,7 @@
 
 <!-- Logo placeholder: replace the path below with the actual logo file -->
 <p align="center">
-  <img src="docs/logo-placeholder.png" alt="Click & Munch Logo" width="250" />
+  <img src="./Logo.jpeg" alt="Click & Munch Logo" width="250" />
 </p>
 
 ## 1. Team
