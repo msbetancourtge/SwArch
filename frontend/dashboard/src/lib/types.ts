@@ -69,17 +69,17 @@ export interface UpdateOrderDTO {
   notes?: string;
 }
 
-// Tipos para Restaurantes (Dashboard)
-export type RestaurantStatus = 'Activo' | 'Inactivo';
-
 export interface Restaurant {
   id: string;
   name: string;
-  category: string;
-  city: string;
-  status: RestaurantStatus;
-  rating?: number;
-  createdAt: string;
+  image: string;
+  rating: number;
+  deliveryTime: string;
+  price: string;
+  badge?: string;
+  category?: string;
+  city?: string;
+  status?: 'Activo' | 'Inactivo';
 }
 
 // Categorías de productos

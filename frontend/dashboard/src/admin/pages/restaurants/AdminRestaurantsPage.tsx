@@ -1,149 +1,111 @@
 import { useEffect, useMemo, useState } from "react";
-import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Search } from "lucide-react";
+import { RestaurantList } from "@/admin/components/restaurants/RestaurantList";
 import { restaurantService } from "@/lib/services/restaurantService";
-import type { Restaurant, RestaurantStatus } from "@/lib/types";
-
-const statusColors: Record<RestaurantStatus, string> = {
-  Activo: "bg-green-100 text-green-800",
-  Inactivo: "bg-gray-100 text-gray-800",
-};
+import type { Restaurant } from "@/lib/types";
 
 export const AdminRestaurantsPage = () => {
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<RestaurantStatus | "all">("all");
-  const [cityFilter, setCityFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
+  const [cityFilter, setCityFilter] = useState("all");
 
   useEffect(() => {
+    const loadRestaurants = async () => {
+      setLoading(true);
+      try {
+        const data = await restaurantService.getAll();
+        setRestaurants(data);
+      } catch (error) {
+        console.error("Error loading restaurants:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     loadRestaurants();
   }, []);
 
-  const loadRestaurants = async () => {
-    setLoading(true);
-    try {
-      const data = await restaurantService.getAll();
-      setRestaurants(data);
-    } catch (error) {
-      console.error("Error loading restaurants:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const cities = useMemo(() => {
-    return Array.from(new Set(restaurants.map((r) => r.city))).sort((a, b) =>
-      a.localeCompare(b),
+    return Array.from(new Set(restaurants.map((rest) => rest.city).filter(Boolean))).sort((a, b) =>
+      String(a).localeCompare(String(b)),
     );
   }, [restaurants]);
 
-  const filtered = useMemo(() => {
+  const filteredRestaurants = useMemo(() => {
     return restaurants.filter((rest) => {
-      const matchesStatus = statusFilter === "all" || rest.status === statusFilter;
-      const matchesCity = cityFilter === "all" || rest.city === cityFilter;
       const q = search.trim().toLowerCase();
       const matchesSearch =
         q.length === 0 ||
-        rest.id.toLowerCase().includes(q) ||
         rest.name.toLowerCase().includes(q) ||
-        rest.category.toLowerCase().includes(q) ||
-        rest.city.toLowerCase().includes(q);
-      return matchesStatus && matchesCity && matchesSearch;
+        (rest.category ?? "").toLowerCase().includes(q) ||
+        (rest.city ?? "").toLowerCase().includes(q);
+      const matchesCity = cityFilter === "all" || rest.city === cityFilter;
+      return matchesSearch && matchesCity;
     });
-  }, [restaurants, statusFilter, cityFilter, search]);
+  }, [restaurants, search, cityFilter]);
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-2xl font-bold text-gray-900">Restaurantes</h1>
+      <div className="space-y-1">
+        <h1 className="text-3xl font-bold tracking-tight text-gray-900">Restaurantes</h1>
         <p className="text-gray-600">
-          Listado y estado de restaurantes registrados en la plataforma.
+          Explora restaurantes disponibles con un formato visual tipo app de delivery.
         </p>
       </div>
 
-      <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm space-y-4">
-        <div className="flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por ID, nombre, categoria o ciudad..."
-            className="w-full md:w-1/2 rounded-lg border border-gray-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <div className="flex gap-2">
-            <select
-              value={cityFilter}
-              onChange={(e) => setCityFilter(e.target.value)}
-              className="rounded-lg border border-gray-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="all">Todas las ciudades</option>
-              {cities.map((city) => (
-                <option key={city} value={city}>
-                  {city}
-                </option>
-              ))}
-            </select>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as RestaurantStatus | "all")}
-              className="rounded-lg border border-gray-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="all">Todos los estados</option>
-              <option value="Activo">Activo</option>
-              <option value="Inactivo">Inactivo</option>
-            </select>
+      <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div className="relative w-full md:max-w-md">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar restaurante, categoria o ciudad..."
+              className="w-full rounded-xl border border-gray-200 py-2.5 pl-9 pr-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+            />
           </div>
-        </div>
 
-        <Table>
-          <TableCaption>Listado de restaurantes con su categoria, ciudad y estado operativo.</TableCaption>
-          <TableHeader>
-            <TableRow>
-              <TableHead>ID</TableHead>
-              <TableHead>Nombre</TableHead>
-              <TableHead>Categoria</TableHead>
-              <TableHead>Ciudad</TableHead>
-              <TableHead>Estado</TableHead>
-              <TableHead>Rating</TableHead>
-              <TableHead>Creado</TableHead>
-              <TableHead className="text-right">Acciones</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {loading ? (
-              <TableRow>
-                <TableCell colSpan={8} className="py-8 text-center text-gray-500">
-                  Cargando restaurantes...
-                </TableCell>
-              </TableRow>
-            ) : filtered.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={8} className="py-8 text-center text-gray-500">
-                  No se encontraron restaurantes con los filtros actuales.
-                </TableCell>
-              </TableRow>
-            ) : (
-              filtered.map((rest) => (
-                <TableRow key={rest.id}>
-                  <TableCell className="font-medium">{rest.id}</TableCell>
-                  <TableCell>{rest.name}</TableCell>
-                  <TableCell>{rest.category}</TableCell>
-                  <TableCell>{rest.city}</TableCell>
-                  <TableCell>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[rest.status]}`}>
-                      {rest.status}
-                    </span>
-                  </TableCell>
-                  <TableCell>{typeof rest.rating === "number" ? rest.rating.toFixed(1) : "—"}</TableCell>
-                  <TableCell>{rest.createdAt}</TableCell>
-                  <TableCell className="text-right">
-                    <button className="text-sm text-blue-600 hover:text-blue-800">Ver</button>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+          <select
+            value={cityFilter}
+            onChange={(e) => setCityFilter(e.target.value)}
+            className="rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+          >
+            <option value="all">Todas las ciudades</option>
+            {cities.map((city) => (
+              <option key={city} value={city}>
+                {city}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        <p className="text-sm text-gray-600">
+          {loading ? "Cargando restaurantes..." : `Restaurantes cerca de tu ubicacion (${filteredRestaurants.length})`}
+        </p>
+
+        {loading ? (
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+            {Array.from({ length: 8 }).map((_, index) => (
+              <div key={index} className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+                <div className="h-44 animate-pulse bg-gray-100" />
+                <div className="space-y-2 p-4">
+                  <div className="h-4 w-2/3 animate-pulse rounded bg-gray-100" />
+                  <div className="h-3 w-1/2 animate-pulse rounded bg-gray-100" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : filteredRestaurants.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-10 text-center text-gray-500">
+            No encontramos restaurantes con esos filtros.
+          </div>
+        ) : (
+          <RestaurantList restaurants={filteredRestaurants} />
+        )}
       </div>
     </div>
   );
