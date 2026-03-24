@@ -41,14 +41,14 @@ The architecture is built around independent microservices—authentication, res
 #### C&C View
 
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                          Clients                                        │
-│   ┌──────────────────┐          ┌──────────────────┐                    │
-│   │  Mobile App       │          │  Web Dashboard    │                    │
-│   │  (Expo / React    │          │  (React + Vite)   │                    │
-│   │   Native)         │          │  Port 5173        │                    │
-│   └────────┬─────────┘          └────────┬─────────┘                    │
-└────────────┼─────────────────────────────┼──────────────────────────────┘
+┌────────────────────────────────────────────────────────┐
+│                          Clients                       │
+│   ┌──────────────────┐          ┌──────────────────┐   │
+│   │  Mobile App      │          │  Web Dashboard   │   │
+│   │  (Expo / React   │          │  (React + Vite)  │   │
+│   │   Native)        │          │  Port 5173       │   │
+│   └────────┬─────────┘          └────────┬─────────┘   │
+└────────────┼─────────────────────────────┼─────────────┘
              │         HTTP / REST         │
              └──────────────┬──────────────┘
                             │
@@ -67,18 +67,18 @@ The architecture is built around independent microservices—authentication, res
         ┌────────┘      │      └────────┐
         ▼               ▼               ▼
 ┌───────────┐  ┌──────────────┐  ┌───────────┐
-│AuthService│  │Restaurant    │  │MenuService│
-│ Port 8081 │  │Service       │  │ Port 8084 │
-│           │  │ Port 8082    │  │           │
-└─────┬─────┘  └──┬─────┬────┘  └─────┬─────┘
-      │            │     │             │
-      ▼            │     ▼             ▼
-┌───────────┐      │  ┌──────────┐ ┌───────────┐
-│ auth_db   │      │  │GeoService│ │ menu_db   │
-│ PostgreSQL│      │  │Port 8083 │ │ MongoDB 7 │
-│ Port 5433 │      │  └────┬─────┘ │ Port 27018│
-└───────────┘      │       │       └───────────┘
-                   ▼       ▼
+│AuthService│  │  Restaurant  │  │MenuService│
+│ Port 8081 │  │  Service     │  │ Port 8084 │
+│           │  │  Port 8082   │  │           │
+└─────┬─────┘  └──┬─────┬────-┘  └─────┬─────┘
+      │           │     │              │
+      ▼           │     ▼              ▼
+┌───────────┐     │  ┌──────────┐   ┌───────────┐
+│ auth_db   │     │  │GeoService│   │ menu_db   │
+│ PostgreSQL│     │  │Port 8083 │   │ MongoDB 7 │
+│ Port 5433 │     │  └────┬─────┘   │ Port 27018│
+└───────────┘     │       │         └───────────┘
+                  ▼       ▼
           ┌─────────────┐ ┌───────────┐
           │restaurant_db│ │  geo_db   │
           │ PostgreSQL  │ │  PostGIS  │
