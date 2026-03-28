@@ -1,4 +1,4 @@
-﻿// Tipos para Productos
+// Tipos para Productos
 export type ProductStatus = 'Borrador' | 'Pendiente' | 'Publicado';
 
 export interface Product {
@@ -97,3 +97,24 @@ export const PRODUCT_CATEGORIES = [
 ] as const;
 
 export type ProductCategory = typeof PRODUCT_CATEGORIES[number];
+
+// Tipos para Kitchen / Chef portal (conectados al OrderService real)
+export type KitchenOrderStatus = 'PENDING' | 'IN_PREPARATION' | 'READY' | 'DELIVERED' | 'CANCELLED';
+
+export interface KitchenOrderItem {
+  id: number;
+  itemName: string;
+  quantity: number;
+  notes: string | null;
+}
+
+export interface KitchenOrder {
+  id: number;
+  restaurantId: number;
+  tableNumber: number;
+  status: KitchenOrderStatus;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+  items: KitchenOrderItem[];
+}
