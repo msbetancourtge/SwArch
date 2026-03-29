@@ -62,6 +62,48 @@ services:
     networks:
       - appnet
 
+  order-db:
+    image: postgres:16
+    container_name: order-db
+    restart: always
+    environment:
+      POSTGRES_DB: order_db
+      POSTGRES_USER: mike
+      POSTGRES_PASSWORD: secret
+    ports:
+      - "5436:5432"
+    volumes:
+      - order_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mike -d order_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - appnet
+
+  reservation-db:
+    image: postgres:16
+    container_name: reservation-db
+    restart: always
+    environment:
+      POSTGRES_DB: reservation_db
+      POSTGRES_USER: mike
+      POSTGRES_PASSWORD: secret
+    ports:
+      - "5437:5432"
+    volumes:
+      - reservation_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mike -d reservation_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - appnet
+
   menu-db:
     image: mongo:7
     container_name: menu-db
@@ -92,12 +134,21 @@ services:
       SERVICES_AUTH_URL: http://authservice:8081
       SERVICES_RESTAURANT_URL: http://restaurantservice:8082
       SERVICES_MENU_URL: http://menuservice:8084
+      SERVICES_ORDER_URL: http://orderservice:8085
+      SERVICES_RESERVATION_URL: http://reservationservice:8086
+      SERVICES_CHECKOUT_URL: http://checkoutservice:8089
     depends_on:
       authservice:
         condition: service_healthy
       restaurantservice:
         condition: service_healthy
       menuservice:
+        condition: service_healthy
+      orderservice:
+        condition: service_healthy
+      reservationservice:
+        condition: service_healthy
+      checkoutservice:
         condition: service_healthy
     networks:
       - appnet
@@ -170,11 +221,62 @@ services:
     networks:
       - appnet
 
+  orderservice:
+    build: ./OrderService
+    container_name: orderservice
+    ports:
+      - "8085:8085"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://order-db:5432/order_db
+      SPRING_DATASOURCE_USERNAME: mike
+      SPRING_DATASOURCE_PASSWORD: secret
+    depends_on:
+      order-db:
+        condition: service_healthy
+    networks:
+      - appnet
+
+  reservationservice:
+    build: ./ReservationService
+    container_name: reservationservice
+    ports:
+      - "8086:8086"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://reservation-db:5432/reservation_db
+      SPRING_DATASOURCE_USERNAME: mike
+      SPRING_DATASOURCE_PASSWORD: secret
+    depends_on:
+      reservation-db:
+        condition: service_healthy
+    networks:
+      - appnet
+
+  checkoutservice:
+    build: ./CheckoutService
+    container_name: checkoutservice
+    ports:
+      - "8089:8089"
+    environment:
+      MENU_SERVICE_URL: http://menuservice:8084
+      ORDER_SERVICE_URL: http://orderservice:8085
+      RESERVATION_SERVICE_URL: http://reservationservice:8086
+    depends_on:
+      menuservice:
+        condition: service_healthy
+      orderservice:
+        condition: service_healthy
+      reservationservice:
+        condition: service_healthy
+    networks:
+      - appnet
+
 volumes:
   auth_data:
   restaurant_data:
   geo_data:
   menu_data:
+  order_data:
+  reservation_data:
 
 networks:
   appnet:

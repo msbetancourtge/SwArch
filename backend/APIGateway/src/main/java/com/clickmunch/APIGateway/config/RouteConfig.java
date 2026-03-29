@@ -29,6 +29,15 @@ public class RouteConfig {
     @Value("${services.menu.url:http://localhost:8084}")
     private String menuServiceUrl;
 
+    @Value("${services.order.url:http://localhost:8085}")
+    private String orderServiceUrl;
+
+    @Value("${services.reservation.url:http://localhost:8086}")
+    private String reservationServiceUrl;
+
+    @Value("${services.checkout.url:http://localhost:8089}")
+    private String checkoutServiceUrl;
+
     @Bean
     public RouterFunction<ServerResponse> routes(JwtTokenUtil jwtTokenUtil) {
         JwtAuthenticationFilter jwtAuthenticationFilter = new JwtAuthenticationFilter(jwtTokenUtil);
@@ -50,7 +59,25 @@ public class RouteConfig {
                 .before(rewritePath("/menu/(?<segment>.*)", "/api/menus/${segment}"))
                 .filter(jwtAuthenticationFilter)
                 .build();
-        return auth.and(restaurant).and(menu);
+        RouterFunction<ServerResponse> order = route("order")
+                .route(path("/order/**"), http())
+                .before(uri(orderServiceUrl))
+                .before(rewritePath("/order/(?<segment>.*)", "/api/orders/${segment}"))
+                .filter(jwtAuthenticationFilter)
+                .build();
+        RouterFunction<ServerResponse> reservation = route("reservation")
+                .route(path("/reservation/**"), http())
+                .before(uri(reservationServiceUrl))
+                .before(rewritePath("/reservation/(?<segment>.*)", "/api/reservations/${segment}"))
+                .filter(jwtAuthenticationFilter)
+                .build();
+        RouterFunction<ServerResponse> checkout = route("checkout")
+                .route(path("/checkout/**"), http())
+                .before(uri(checkoutServiceUrl))
+                .before(rewritePath("/checkout/(?<segment>.*)", "/api/checkout/${segment}"))
+                .filter(jwtAuthenticationFilter)
+                .build();
+        return auth.and(restaurant).and(menu).and(order).and(reservation).and(checkout);
     }
 
     @Bean
