@@ -2,6 +2,7 @@ package com.clickmunch.AuthService.controller;
 
 import com.clickmunch.AuthService.dto.ApiResponse;
 import com.clickmunch.AuthService.dto.LoginRequest;
+import com.clickmunch.AuthService.dto.LoginResponse;
 import com.clickmunch.AuthService.dto.RegisterRequest;
 import com.clickmunch.AuthService.dto.UserInfoResponse;
 import com.clickmunch.AuthService.service.AuthService;
@@ -19,8 +20,8 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<String>> login(@RequestBody LoginRequest loginRequest) {
-        ApiResponse<String> response = authService.login(loginRequest);
+    public ResponseEntity<ApiResponse<LoginResponse>> login(@RequestBody LoginRequest loginRequest) {
+        ApiResponse<LoginResponse> response = authService.login(loginRequest);
         return ResponseEntity.ok(response);
     }
 
@@ -33,6 +34,13 @@ public class AuthController {
     @GetMapping("/users/{userId}")
     public UserInfoResponse GetUserInfo(@PathVariable Long userId) {
         return authService.getUserById(userId);
+    }
+
+    // Endpoint administrativo para crear usuarios con rol específico (solo para admins)
+    @PostMapping("/admin/create-user")
+    public ResponseEntity<ApiResponse<String>> adminCreateUser(@RequestBody RegisterRequest registerRequest) {
+        ApiResponse<String> response = authService.adminCreateUser(registerRequest);
+        return ResponseEntity.ok(response);
     }
 
 }

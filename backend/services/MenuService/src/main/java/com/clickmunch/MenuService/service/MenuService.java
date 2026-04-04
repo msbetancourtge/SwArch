@@ -102,20 +102,24 @@ public class MenuService {
 
         // 2) build items with the saved category ids and save
         List<MenuItem> itemsToSave = new ArrayList<>();
-        for (int i = 0; i < savedCats.size(); i++) {
-            MenuCategory savedCat = savedCats.get(i);
-            List<MenuCreateRequest.ItemRequest> itemReqs = request.categories().get(i).items();
-            if (itemReqs == null) continue;
-            for (MenuCreateRequest.ItemRequest ir : itemReqs) {
-                MenuItem mi = new MenuItem();
-                mi.setCategoryId(savedCat.getId());
-                mi.setName(ir.name());
-                mi.setDescription(ir.description());
-                mi.setPrice(ir.price());
-                mi.setImageUrl(ir.imageUrl());
-                itemsToSave.add(mi);
-            }
+        for (MenuCategory savedCat : savedCats) {
+            MenuCreateRequest.CategoryRequest originalCategory = request.categories().stream()
+            .filter(c -> c.category().equals(savedCat.getCategory()))
+            .findFirst()
+            .orElse(null);
+
+        if (originalCategory == null || originalCategory.items() == null) continue;
+
+        for (MenuCreateRequest.ItemRequest ir : originalCategory.items()) {
+            MenuItem mi = new MenuItem();
+            mi.setCategoryId(savedCat.getId());
+            mi.setName(ir.name());
+            mi.setDescription(ir.description());
+            mi.setPrice(ir.price());
+            mi.setImageUrl(ir.imageUrl());
+            itemsToSave.add(mi);
         }
+    }
 
         List<MenuItem> savedItems = menuItemRepository.saveAll(itemsToSave);
 

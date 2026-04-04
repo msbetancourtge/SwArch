@@ -12,6 +12,8 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { Link, useLocation } from 'react-router';
+import { getCurrentUserRole } from '@/lib/auth';
+import { useMemo } from 'react';
 
 interface SidebarProps {
   isCollapsed: boolean;
@@ -22,19 +24,28 @@ export const AdminSidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) 
 
   const { pathname } = useLocation();
 
-  const menuItems = [
-    { icon: Home, label: 'Dashboard', to: '/' },
-    { icon: BarChart3, label: 'Productos', to: '/products' },
-    { icon: Users, label: 'Usuarios', to: '/users' },
-    { icon: ShoppingCart, label: 'Ordenes', to: '/orders' },
-    { icon: FileText, label: 'Reservas', to: '/reservations' },
-    { icon: FileText, label: 'Restaurantes', to: '/restaurants' },
-    { icon: FileText, label: 'Reportes', to: '/reports' },
-    { icon: FileText, label: 'Ratings', to: '/ratings' },
-    { icon: Bell, label: 'Notificaciones', to: '/notifications' },
-    { icon: Settings, label: 'Ajustes', to: '/settings' },
-    { icon: HelpCircle, label: 'Ayuda', to: '/help' },
+  // Definir todos los items del menú
+  const allMenuItems = [
+    { icon: Home, label: 'Dashboard', to: '/', roles: ['ADMIN', 'RESTAURANT_MANAGER'] },
+    { icon: BarChart3, label: 'Productos', to: '/products', roles: ['ADMIN', 'RESTAURANT_MANAGER'] },
+    { icon: Users, label: 'Usuarios', to: '/users', roles: ['ADMIN'] },
+    { icon: ShoppingCart, label: 'Ordenes', to: '/orders', roles: ['ADMIN', 'RESTAURANT_MANAGER'] },
+    { icon: FileText, label: 'Reservas', to: '/reservations', roles: ['ADMIN', 'RESTAURANT_MANAGER'] },
+    { icon: FileText, label: 'Restaurantes', to: '/restaurants', roles: ['ADMIN'] },
+    { icon: FileText, label: 'Reportes', to: '/reports', roles: ['ADMIN', 'RESTAURANT_MANAGER'] },
+    { icon: FileText, label: 'Ratings', to: '/ratings', roles: ['ADMIN', 'RESTAURANT_MANAGER'] },
+    { icon: Bell, label: 'Notificaciones', to: '/notifications', roles: ['ADMIN', 'RESTAURANT_MANAGER'] },
+    { icon: Settings, label: 'Ajustes', to: '/settings', roles: ['ADMIN'] },
+    { icon: HelpCircle, label: 'Ayuda', to: '/help', roles: ['ADMIN'] },
   ];
+
+  // Filtrar items del menú según el rol del usuario
+  const menuItems = useMemo(() => {
+    const userRole = getCurrentUserRole();
+    if (!userRole) return [];
+    
+    return allMenuItems.filter(item => item.roles.includes(userRole));
+  }, []);
 
   const isActiveRoute = ( to: string ) => {
     return pathname === to;

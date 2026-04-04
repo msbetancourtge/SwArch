@@ -60,6 +60,39 @@ export function isAuthenticated(): boolean {
   return !!getSession();
 }
 
+// Obtener el rol del usuario actual desde el token
+export function getCurrentUserRole(): string | null {
+  const session = getSession();
+  if (!session) return null;
+  
+  const decodedPayload = decodeJwtPayload(session.token);
+  return decodedPayload?.role || null;
+}
+
+// Obtener el nombre del usuario actual desde el token
+export function getCurrentUserName(): string | null {
+  const session = getSession();
+  if (!session) return null;
+  
+  const decodedPayload = decodeJwtPayload(session.token);
+  return decodedPayload?.name || null;
+}
+
+export function getCurrentUserInitials(): string {
+  const name = getCurrentUserName();
+  if (!name) return 'U';
+
+  const trimmedName = name.trim();
+  if (!trimmedName) return 'U';
+
+  const parts = trimmedName.split(' ').filter((part) => part.length > 0);
+  if (parts.length > 1) {
+    return parts.map((part) => part.charAt(0).toUpperCase()).join('').substring(0, 2);
+  }
+
+  return trimmedName.charAt(0).toUpperCase();
+}
+
 // Login
 export async function login(username: string, password: string): Promise<{ success: boolean; message: string; user?: { username: string; role: string } }> {
   try {
@@ -70,12 +103,17 @@ export async function login(username: string, password: string): Promise<{ succe
     });
 
     const data: ApiResponse<LoginResponseData> = await res.json();
-
+    console.log(data.data);
     if (!res.ok || !data.data) {
       return { success: false, message: data.message || 'Error al iniciar sesión' };
     }
 
-    const { token, username: user, role } = data.data;
+    const { token, username: user } = data.data;
+    
+    // Decodificar el rol desde el token JWT
+    const decodedPayload = decodeJwtPayload(token);
+    const role = decodedPayload?.role || 'USER'; // fallback a 'USER' si no se puede decodificar
+    
     saveSession(token, { username: user, role });
 
     return { success: true, message: data.message, user: { username: user, role } };
@@ -96,7 +134,7 @@ export async function login(username: string, password: string): Promise<{ succe
   }
 }
 
-// Register (rol RESTAURANT_MANAGER por defecto para dashboard)
+// Register (rol CUSTOMER asignado automáticamente por el backend)
 export async function register(
   name: string,
   email: string,
@@ -112,7 +150,7 @@ export async function register(
         email,
         username,
         password,
-        role: 'RESTAURANT_MANAGER', // Rol fijo para dashboard MVP
+        // El rol se asigna automáticamente en el backend por seguridad
       } as RegisterRequest),
     });
 
@@ -128,7 +166,25 @@ export async function register(
     return { success: false, message: 'Error de conexión con el servidor' };
   }
 }
+//decode
+export function decodeJwtPayload(token: string): any | null {
+  try {
+    const payload = token.split('.')[1];
+    if (!payload) return null;
 
+    // Ajustar Base64 URL → Base64 normal
+    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+
+    // Decodificar
+    const decoded = atob(base64);
+
+    // Convertir a JSON
+    return JSON.parse(decoded);
+  } catch (error) {
+    console.error("Error decoding JWT:", error);
+    return null;
+  }
+}
 // Logout
 export function logout() {
   clearSession();

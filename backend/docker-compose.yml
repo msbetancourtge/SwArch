@@ -154,7 +154,7 @@ services:
       - appnet
 
   authservice:
-    build: ./AuthService
+    build: ./services/AuthService
     container_name: authservice
     ports:
       - "8081:8081"
@@ -169,7 +169,7 @@ services:
       - appnet
 
   restaurantservice:
-    build: ./RestaurantService
+    build: ./services/RestaurantService
     container_name: restaurantservice
     ports:
       - "8082:8082"
@@ -190,7 +190,7 @@ services:
       - appnet
 
   geoservice:
-    build: ./GeoService
+    build: ./services/GeoService
     container_name: geoservice
     ports:
       - "8083:8083"
@@ -205,7 +205,7 @@ services:
       - appnet
 
   menuservice:
-    build: ./MenuService
+    build: ./services/MenuService
     container_name: menuservice
     ports:
       - "8084:8084"
@@ -222,7 +222,7 @@ services:
       - appnet
 
   orderservice:
-    build: ./OrderService
+    build: ./services/OrderService
     container_name: orderservice
     ports:
       - "8085:8085"
@@ -237,7 +237,7 @@ services:
       - appnet
 
   reservationservice:
-    build: ./ReservationService
+    build: ./services/ReservationService
     container_name: reservationservice
     ports:
       - "8086:8086"
@@ -252,7 +252,7 @@ services:
       - appnet
 
   checkoutservice:
-    build: ./CheckoutService
+    build: ./services/CheckoutService
     container_name: checkoutservice
     ports:
       - "8089:8089"

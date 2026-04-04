@@ -12,6 +12,7 @@ import { AdminReservationsPage } from './admin/pages/reservations/AdminReservati
 import { AdminRestaurantsPage } from './admin/pages/restaurants/AdminRestaurantsPage'
 import { AdminRatingsPage } from './admin/pages/ratings/AdminRatingsPage'
 import { RegisterPage } from './auth/pages/register/RegisterPage'
+import { CustomerLayout } from './customer/layouts/CustomerLayout'
 import { lazy } from 'react'
 import { LoginPage } from './auth/pages/login/LoginPage'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -73,6 +74,11 @@ export const appRouter = createBrowserRouter([
                 element: <AdminHelpPage/>
             }
         ]
+    },
+
+    {
+        path: '/customer',
+        element: <ProtectedRoute><CustomerLayout/></ProtectedRoute>
     },
 
     {
