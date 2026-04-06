@@ -46,7 +46,7 @@ const FitBounds = ({ restaurants }: RestaurantsMapProps) => {
 export const RestaurantsMap = ({ restaurants }: RestaurantsMapProps) => {
   return (
     <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-      <MapContainer center={BOGOTA} zoom={10} scrollWheelZoom className="h-[560px] w-full">
+      <MapContainer center={BOGOTA} zoom={10} scrollWheelZoom className="h-140 w-full">
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
