@@ -1,6 +1,8 @@
 package com.clickmunch.RestaurantService.service;
 
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
@@ -11,21 +13,32 @@ import com.clickmunch.RestaurantService.client.MenuClient;
 import com.clickmunch.RestaurantService.dto.AuthUserResponse;
 import com.clickmunch.RestaurantService.dto.CreateRestaurantRequest;
 import com.clickmunch.RestaurantService.dto.LocationDto;
+import com.clickmunch.RestaurantService.dto.RestaurantCardResponse;
 import com.clickmunch.RestaurantService.dto.RestaurantDetailsResponse;
 import com.clickmunch.RestaurantService.dto.RestaurantResponse;
 import com.clickmunch.RestaurantService.entity.Restaurant;
+import com.clickmunch.RestaurantService.entity.RestaurantProfile;
+import com.clickmunch.RestaurantService.repository.RestaurantProfileRepository;
 import com.clickmunch.RestaurantService.repository.RestaurantRepository;
 
 @Service
 public class RestaurantService {
 
     private final RestaurantRepository restaurantRepository;
+    private final RestaurantProfileRepository restaurantProfileRepository;
     private final GeoClient geoClient;
     private final AuthClient authClient;
     private final MenuClient menuClient;
 
-    public RestaurantService(RestaurantRepository restaurantRepository, GeoClient geoClient, AuthClient authClient, MenuClient menuClient) {
+    public RestaurantService(
+            RestaurantRepository restaurantRepository,
+            RestaurantProfileRepository restaurantProfileRepository,
+            GeoClient geoClient,
+            AuthClient authClient,
+            MenuClient menuClient
+    ) {
         this.restaurantRepository = restaurantRepository;
+        this.restaurantProfileRepository = restaurantProfileRepository;
         this.geoClient = geoClient;
         this.authClient = authClient;
         this.menuClient = menuClient;
@@ -116,7 +129,6 @@ public class RestaurantService {
         }
     }
 
-
     public RestaurantDetailsResponse getRestaurantDetails(Long id) {
         var restaurant = restaurantRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Restaurant not found"));
@@ -134,4 +146,45 @@ public class RestaurantService {
                 menuCategories
         );
     }
+
+    public List<RestaurantCardResponse> listRestaurantCards() {
+        List<Restaurant> restaurants = restaurantRepository.findAll();
+        if (restaurants.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> restaurantIds = restaurants.stream().map(Restaurant::getId).toList();
+        Map<Long, RestaurantProfile> profilesByRestaurantId = restaurantProfileRepository
+                .findByRestaurantIdIn(restaurantIds)
+                .stream()
+                .collect(Collectors.toMap(RestaurantProfile::getRestaurantId, profile -> profile));
+
+        return restaurants.stream().map(restaurant -> {
+            RestaurantProfile profile = profilesByRestaurantId.get(restaurant.getId());
+
+            String category = profile != null && profile.getCategory() != null ? profile.getCategory() : "General";
+            String city = profile != null && profile.getCity() != null ? profile.getCity() : "Bogota";
+            Double rating = profile != null && profile.getRating() != null ? profile.getRating() : 4.0;
+            String deliveryTime = profile != null && profile.getDeliveryTime() != null ? profile.getDeliveryTime() : "30 min";
+            String price = profile != null && profile.getAvgPrice() != null ? profile.getAvgPrice() : "$ 0";
+            String badge = profile != null ? profile.getBadge() : null;
+            Double latitude = profile != null && profile.getLatitude() != null ? profile.getLatitude() : 4.711;
+            Double longitude = profile != null && profile.getLongitude() != null ? profile.getLongitude() : -74.0721;
+
+            return new RestaurantCardResponse(
+                    restaurant.getId(),
+                    restaurant.getName(),
+                    restaurant.getImageUrl(),
+                    rating,
+                    deliveryTime,
+                    price,
+                    badge,
+                    category,
+                    city,
+                    latitude,
+                    longitude
+            );
+        }).toList();
+    }
 }
+

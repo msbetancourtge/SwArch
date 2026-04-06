@@ -3,6 +3,7 @@ package com.clickmunch.RestaurantService.controller;
 import com.clickmunch.RestaurantService.client.AuthClient;
 import com.clickmunch.RestaurantService.dto.CreateRestaurantRequest;
 import com.clickmunch.RestaurantService.dto.NearbySearchRequest;
+import com.clickmunch.RestaurantService.dto.RestaurantCardResponse;
 import com.clickmunch.RestaurantService.dto.RestaurantDetailsResponse;
 import com.clickmunch.RestaurantService.dto.RestaurantResponse;
 import com.clickmunch.RestaurantService.entity.Restaurant;
@@ -44,6 +45,11 @@ public class RestaurantController {
         }
         var restaurants = restaurantService.listByOwnerId(ownerId);
         return ResponseEntity.ok(restaurants);
+    }
+
+    @GetMapping("/cards")
+    public ResponseEntity<List<RestaurantCardResponse>> getRestaurantCards() {
+        return ResponseEntity.ok(restaurantService.listRestaurantCards());
     }
 
     @GetMapping("/nearby")
