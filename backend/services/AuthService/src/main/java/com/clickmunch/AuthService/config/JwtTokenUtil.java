@@ -14,12 +14,13 @@ public class JwtTokenUtil {
 
     private static final String SecretKey = "1245789630ClickAndMunchSuperSecretKey1245789630";
 
-    public String generateToken(String username, String role, String name) {
+    public String generateToken(String username, String role, String name, Long userId) {
         logger.info("Generating token for username {} and role {}", username, role);
         return Jwts.builder()
                 .setSubject(username)
                 .claim("role", role)
                 .claim("name", name)
+                .claim("userId", userId)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + 3600_000))
                 .signWith(SignatureAlgorithm.HS256, SecretKey)

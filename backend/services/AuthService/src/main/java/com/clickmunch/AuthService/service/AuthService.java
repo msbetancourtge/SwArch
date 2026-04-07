@@ -74,7 +74,7 @@ public class AuthService {
         }
         System.out.println("USER NAME FROM DB: " + user.getName());
         logger.info("USER NAME FROM DB: {}", user.getName());
-        String token = jwtTokenUtil.generateToken(user.getUsername(), user.getRole().name(), user.getName());
+        String token = jwtTokenUtil.generateToken(user.getUsername(), user.getRole().name(), user.getName(), user.getId());
         System.out.println("TOKEN GENERATED for user: " + user.getUsername());
         return new ApiResponse<>("Login successful", new LoginResponse(token));
     }

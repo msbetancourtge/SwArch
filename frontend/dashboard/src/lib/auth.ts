@@ -69,6 +69,14 @@ export function getCurrentUserRole(): string | null {
   return decodedPayload?.role || null;
 }
 
+// Obtener el userId del usuario actual desde el token
+export function getCurrentUserId(): number | null {
+  const session = getSession();
+  if (!session) return null;
+  const decoded = decodeJwtPayload(session.token);
+  return decoded?.userId ?? null;
+}
+
 // Obtener el nombre del usuario actual desde el token
 export function getCurrentUserName(): string | null {
   const session = getSession();
@@ -185,6 +193,28 @@ export function decodeJwtPayload(token: string): any | null {
     return null;
   }
 }
+// Obtener el restaurantId del manager actual
+export async function getOwnerRestaurantId(): Promise<number | null> {
+  const session = getSession();
+  if (!session || session.user.role !== 'RESTAURANT_MANAGER') return null;
+
+  const userId = getCurrentUserId();
+  if (!userId) return null;
+
+  const apiBase = import.meta.env.VITE_API_URL ?? 'http://localhost:8080';
+  try {
+    const res = await fetch(`${apiBase}/restaurant/owner/${userId}`, {
+      headers: { Authorization: `Bearer ${session.token}` },
+    });
+    if (!res.ok) return null;
+    const restaurants = await res.json();
+    // MVP: uses first restaurant. Multi-restaurant support requires a switcher.
+    return restaurants[0]?.id ?? null;
+  } catch {
+    return null;
+  }
+}
+
 // Logout
 export function logout() {
   clearSession();
