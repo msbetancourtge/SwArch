@@ -1,19 +1,31 @@
 package com.clickmunch.OrderService.service;
 
-import com.clickmunch.OrderService.dto.*;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.clickmunch.OrderService.dto.AddItemsRequest;
+import com.clickmunch.OrderService.dto.CreateOrderRequest;
+import com.clickmunch.OrderService.dto.OrderItemResponse;
+import com.clickmunch.OrderService.dto.OrderResponse;
+import com.clickmunch.OrderService.dto.TipRequest;
+import com.clickmunch.OrderService.dto.UpdateOrderRequest;
+import com.clickmunch.OrderService.dto.UpdateStatusRequest;
+import com.clickmunch.OrderService.dto.WaiterCallRequest;
+import com.clickmunch.OrderService.dto.WaiterCallResponse;
 import com.clickmunch.OrderService.entity.Order;
 import com.clickmunch.OrderService.entity.OrderChannel;
 import com.clickmunch.OrderService.entity.OrderItem;
 import com.clickmunch.OrderService.entity.OrderStatus;
+import com.clickmunch.OrderService.entity.WaiterCall;
 import com.clickmunch.OrderService.repository.OrderItemRepository;
 import com.clickmunch.OrderService.repository.OrderRepository;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import com.clickmunch.OrderService.repository.WaiterCallRepository;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.List;
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
@@ -21,6 +33,7 @@ public class OrderService {
 
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
+    private final WaiterCallRepository waiterCallRepository;
 
     @Transactional
     public OrderResponse createOrder(CreateOrderRequest request) {
@@ -40,6 +53,9 @@ public class OrderService {
                 .notes(request.notes())
                 .eta(request.eta())
                 .total(total)
+                .tableId(request.tableId())
+                .waiterId(request.waiterId())
+                .preparationMinutes(request.preparationMinutes())
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
@@ -100,6 +116,14 @@ public class OrderService {
         }).toList();
     }
 
+    public List<OrderResponse> getOrdersByWaiterId(Long waiterId) {
+        List<Order> orders = orderRepository.findByWaiterId(waiterId);
+        return orders.stream().map(order -> {
+            List<OrderItem> items = orderItemRepository.findByOrderId(order.getId());
+            return toResponse(order, items);
+        }).toList();
+    }
+
     @Transactional
     public OrderResponse updateOrder(Long id, UpdateOrderRequest request) {
         Order order = orderRepository.findById(id)
@@ -130,6 +154,110 @@ public class OrderService {
         Order updated = orderRepository.save(order);
         List<OrderItem> items = orderItemRepository.findByOrderId(id);
         return toResponse(updated, items);
+    }
+
+    @Transactional
+    public OrderResponse addItemsToOrder(Long id, AddItemsRequest request) {
+        Order order = orderRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Order not found: " + id));
+
+        List<OrderItem> newItems = request.items().stream()
+                .map(itemReq -> OrderItem.builder()
+                        .orderId(id)
+                        .menuItemId(itemReq.menuItemId())
+                        .productName(itemReq.productName())
+                        .quantity(itemReq.quantity())
+                        .unitPrice(itemReq.unitPrice())
+                        .subtotal(itemReq.unitPrice().multiply(BigDecimal.valueOf(itemReq.quantity())))
+                        .build())
+                .toList();
+
+        orderItemRepository.saveAll(newItems);
+
+        // Recalculate total
+        List<OrderItem> allItems = orderItemRepository.findByOrderId(id);
+        BigDecimal newTotal = allItems.stream()
+                .map(OrderItem::getSubtotal)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        order.setTotal(newTotal);
+        order.setUpdatedAt(LocalDateTime.now());
+
+        Order updated = orderRepository.save(order);
+        return toResponse(updated, allItems);
+    }
+
+    @Transactional
+    public OrderResponse assignWaiter(Long orderId, Long waiterId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("Order not found: " + orderId));
+        order.setWaiterId(waiterId);
+        order.setUpdatedAt(LocalDateTime.now());
+        Order updated = orderRepository.save(order);
+        List<OrderItem> items = orderItemRepository.findByOrderId(orderId);
+        return toResponse(updated, items);
+    }
+
+    @Transactional
+    public OrderResponse assignTable(Long orderId, Long tableId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("Order not found: " + orderId));
+        order.setTableId(tableId);
+        order.setUpdatedAt(LocalDateTime.now());
+        Order updated = orderRepository.save(order);
+        List<OrderItem> items = orderItemRepository.findByOrderId(orderId);
+        return toResponse(updated, items);
+    }
+
+    @Transactional
+    public OrderResponse addTip(Long orderId, TipRequest request) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("Order not found: " + orderId));
+        order.setTipAmount(request.tipAmount());
+        if (request.waiterComment() != null) {
+            order.setWaiterComment(request.waiterComment());
+        }
+        order.setUpdatedAt(LocalDateTime.now());
+        Order updated = orderRepository.save(order);
+        List<OrderItem> items = orderItemRepository.findByOrderId(orderId);
+        return toResponse(updated, items);
+    }
+
+    // ─── Waiter Calls ───
+
+    @Transactional
+    public WaiterCallResponse createWaiterCall(WaiterCallRequest request) {
+        WaiterCall call = WaiterCall.builder()
+                .orderId(request.orderId())
+                .tableId(request.tableId())
+                .restaurantId(request.restaurantId())
+                .status("PENDING")
+                .message(request.message())
+                .createdAt(LocalDateTime.now())
+                .build();
+        WaiterCall saved = waiterCallRepository.save(call);
+        return toCallResponse(saved);
+    }
+
+    public List<WaiterCallResponse> getPendingWaiterCalls(Long restaurantId) {
+        return waiterCallRepository.findPendingByRestaurantId(restaurantId).stream()
+                .map(this::toCallResponse).toList();
+    }
+
+    @Transactional
+    public WaiterCallResponse resolveWaiterCall(Long callId) {
+        WaiterCall call = waiterCallRepository.findById(callId)
+                .orElseThrow(() -> new IllegalArgumentException("Waiter call not found: " + callId));
+        call.setStatus("RESOLVED");
+        call.setResolvedAt(LocalDateTime.now());
+        return toCallResponse(waiterCallRepository.save(call));
+    }
+
+    @Transactional
+    public WaiterCallResponse acknowledgeWaiterCall(Long callId) {
+        WaiterCall call = waiterCallRepository.findById(callId)
+                .orElseThrow(() -> new IllegalArgumentException("Waiter call not found: " + callId));
+        call.setStatus("ACKNOWLEDGED");
+        return toCallResponse(waiterCallRepository.save(call));
     }
 
     @Transactional
@@ -165,9 +293,22 @@ public class OrderService {
                 order.getNotes(),
                 order.getEta(),
                 order.getTotal(),
+                order.getTableId(),
+                order.getWaiterId(),
+                order.getTipAmount(),
+                order.getWaiterComment(),
+                order.getPreparationMinutes(),
                 itemResponses,
                 order.getCreatedAt(),
                 order.getUpdatedAt()
+        );
+    }
+
+    private WaiterCallResponse toCallResponse(WaiterCall call) {
+        return new WaiterCallResponse(
+                call.getId(), call.getOrderId(), call.getTableId(),
+                call.getRestaurantId(), call.getStatus(), call.getMessage(),
+                call.getCreatedAt(), call.getResolvedAt()
         );
     }
 

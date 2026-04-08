@@ -30,7 +30,7 @@ Click & Munch is a digital platform designed to streamline the dining experience
 
 For restaurant owners and managers, the platform provides a comprehensive dashboard to manage restaurant profiles, define and update menu categories and items (including images and pricing), and monitor incoming orders in real time. The system supports role-based access for different staff members (managers, waiters, chefs), ensuring that each team member sees only the information relevant to their responsibilities.
 
-The architecture is built around independent microservices—authentication, restaurant management, geolocation, and menu management—connected through a centralized API Gateway. This design ensures scalability, fault isolation, and the ability to evolve each service independently as the platform grows.
+The architecture is built around independent microservices—authentication, restaurant management, geolocation, menu management, order processing, reservation scheduling, and checkout orchestration—connected through a centralized API Gateway. This design ensures scalability, fault isolation, and the ability to evolve each service independently as the platform grows.
 
 ---
 
@@ -62,36 +62,41 @@ The architecture is built around independent microservices—authentication, res
               │  │ Route Rewriting   │  │
               │  │ CORS Handling     │  │
               │  └───────────────────┘  │
-              └──┬──────┬──────┬────────┘
-                 │      │      │
-        ┌────────┘      │      └────────┐
-        ▼               ▼               ▼
-┌───────────┐  ┌──────────────┐  ┌───────────┐
-│AuthService│  │  Restaurant  │  │MenuService│
-│ Port 8081 │  │  Service     │  │ Port 8084 │
-│           │  │  Port 8082   │  │           │
-└─────┬─────┘  └──┬─────┬────-┘  └─────┬─────┘
-      │           │     │              │
-      ▼           │     ▼              ▼
-┌───────────┐     │  ┌──────────┐   ┌───────────┐
-│ auth_db   │     │  │GeoService│   │ menu_db   │
-│ PostgreSQL│     │  │Port 8083 │   │ MongoDB 7 │
-│ Port 5433 │     │  └────┬─────┘   │ Port 27018│
-└───────────┘     │       │         └───────────┘
-                  ▼       ▼
-          ┌─────────────┐ ┌───────────┐
-          │restaurant_db│ │  geo_db   │
-          │ PostgreSQL  │ │  PostGIS  │
-          │ Port 5434   │ │ Port 5435 │
-          └─────────────┘ └───────────┘
+              └──┬──┬──┬──┬──┬──┬──────┘
+                 │  │  │  │  │  │
+     ┌───────────┘  │  │  │  │  └────────────┐
+     │     ┌────────┘  │  │  └────────┐      │
+     ▼     ▼           ▼  ▼           ▼      ▼
+┌───────┐┌──────────┐┌──────┐┌───────────┐┌──────────┐┌──────────┐
+│ Auth  ││Restaurant││ Menu ││  Order    ││Reserv.   ││Checkout  │
+│Service││ Service  ││Serv. ││  Service  ││Service   ││Service   │
+│ :8081 ││  :8082   ││:8084 ││  :8085   ││ :8086    ││ :8089    │
+└──┬────┘└──┬────┬──┘└──┬───┘└────┬─────┘└────┬─────┘└──┬──┬──┬─┘
+   │        │    │      │         │            │         │  │  │
+   ▼        │    ▼      ▼         ▼            ▼         │  │  │
+┌──────┐    │┌──────┐┌───────┐┌────────┐┌──────────────┐│  │  │
+│auth  │    ││ Geo  ││menu_db││order_db││reservation_db││  │  │
+│_db   │    ││Serv. ││MongoDB││Postgres││  PostgreSQL  ││  │  │
+│PgSQL │    ││:8083 ││:27018 ││ :5436  ││   :5437      ││  │  │
+│:5433 │    │└──┬───┘└───────┘└────────┘└──────────────┘│  │  │
+└──────┘    │   │                                        │  │  │
+            ▼   ▼                    Calls via REST ─────┘  │  │
+     ┌──────────┐┌──────────┐   (Menu, Order, Reservation) │  │
+     │restaurant││  geo_db  │           ┌───────────────────┘  │
+     │   _db    ││  PostGIS │           │   ┌──────────────────┘
+     │PostgreSQL││  :5435   │           │   │
+     │  :5434   │└──────────┘           │   │
+     └──────────┘                       │   │
+                                        ▼   ▼
 ```
 
 #### Architectural Styles Used
 
 | Style | Where Applied | Description |
 |-------|---------------|-------------|
-| **Microservices** | Entire backend | The system is decomposed into five independently deployable services (AuthService, RestaurantService, GeoService, MenuService, API Gateway), each owning its own database and communicating via REST. |
+| **Microservices** | Entire backend | The system is decomposed into eight independently deployable services (AuthService, RestaurantService, GeoService, MenuService, OrderService, ReservationService, CheckoutService, and API Gateway), each owning its own database (where applicable) and communicating via REST. |
 | **API Gateway** | APIGateway service | A single entry point routes all external traffic, performs path rewriting, handles CORS, and enforces JWT authentication before forwarding requests to downstream services. |
+| **Saga Orchestrator** | CheckoutService | The checkout flow coordinates multiple services (Menu validation, Order creation, Reservation linking) through a centralized orchestrator, ensuring a consistent multi-step transaction without distributed locks. |
 | **Layered Architecture** | Each microservice | Every service follows a Controller → Service → Repository layering, separating HTTP handling, business logic, and data access concerns. |
 | **Client-Server** | Frontend ↔ Backend | The mobile app and web dashboard act as clients that consume the backend's RESTful API through the gateway. |
 | **Pipe-and-Filter** | Gateway request pipeline | Incoming requests pass through a pipeline of filters (JWT authentication, path rewriting, URI resolution) before reaching the target service handler. |
@@ -107,6 +112,9 @@ The architecture is built around independent microservices—authentication, res
 | **RestaurantService** | Restaurant CRUD, owner validation, nearby search orchestration, restaurant details aggregation. | Spring Boot 4, Spring Data JDBC, PostgreSQL |
 | **GeoService** | Geospatial storage and proximity queries for restaurant locations. | Spring Boot 4, Spring Data JDBC, PostGIS |
 | **MenuService** | Menu category and item management (CRUD), full menu creation per restaurant. | Spring Boot 4, Spring Data MongoDB, MongoDB |
+| **OrderService** | Order lifecycle management (CRUD), status tracking (Preparing → Ready → Served → Delivered/Cancelled), order items. | Spring Boot 4, Spring Data JDBC, PostgreSQL |
+| **ReservationService** | Reservation scheduling, party size management, status tracking (Pendiente → Confirmada → Completada/Cancelada), order linking. | Spring Boot 4, Spring Data JDBC, PostgreSQL |
+| **CheckoutService** | Saga Orchestrator — validates cart items, creates orders via OrderService, links reservations. Stateless (no database). | Spring Boot 4, RestClient |
 | **Web Dashboard** | Admin panel for restaurant and product management. | React 19, TypeScript, Vite, TailwindCSS |
 | **Mobile App** | Customer-facing app for browsing restaurants, menus, and ordering. | React Native, Expo SDK 54, Zustand, React Query |
 
@@ -118,6 +126,9 @@ The architecture is built around independent microservices—authentication, res
 | API Gateway | AuthService | HTTP/REST | Forwards `/auth/**` → `/api/auth/**` (public). |
 | API Gateway | RestaurantService | HTTP/REST | Forwards `/restaurant/**` → `/api/restaurants/**` (JWT-protected). |
 | API Gateway | MenuService | HTTP/REST | Forwards `/menu/**` → `/api/menus/**` (JWT-protected). |
+| API Gateway | OrderService | HTTP/REST | Forwards `/order/**` → `/api/orders/**` (JWT-protected). |
+| API Gateway | ReservationService | HTTP/REST | Forwards `/reservation/**` → `/api/reservations/**` (JWT-protected). |
+| API Gateway | CheckoutService | HTTP/REST | Forwards `/checkout/**` → `/api/checkout/**` (JWT-protected). |
 | RestaurantService | AuthService | HTTP/REST | Validates owner identity via `AuthClient`. |
 | RestaurantService | GeoService | HTTP/REST | Creates locations and queries nearby restaurants via `GeoClient`. |
 | RestaurantService | MenuService | HTTP/REST | Fetches menu data for restaurant details via `MenuClient`. |
@@ -125,6 +136,11 @@ The architecture is built around independent microservices—authentication, res
 | RestaurantService | restaurant_db | JDBC | PostgreSQL database for restaurant records. |
 | GeoService | geo_db | JDBC | PostGIS database for geospatial location data. |
 | MenuService | menu_db | MongoDB Driver | MongoDB database for menu categories and items. |
+| OrderService | order_db | JDBC | PostgreSQL database for orders and order items. |
+| ReservationService | reservation_db | JDBC | PostgreSQL database for reservations. |
+| CheckoutService | OrderService | HTTP/REST | Creates orders via `OrderClient`. |
+| CheckoutService | ReservationService | HTTP/REST | Validates and links reservations via `ReservationClient`. |
+| CheckoutService | MenuService | HTTP/REST | Validates menu items via `MenuClient`. |
 
 ---
 
@@ -138,7 +154,7 @@ The architecture is built around independent microservices—authentication, res
 
 ### Backend
 
-The entire backend (5 microservices + 4 databases) runs in Docker containers.
+The entire backend (8 microservices + 6 databases) runs in Docker containers.
 
 ```bash
 # 1. Clone the repository
@@ -153,7 +169,7 @@ docker compose up --build -d
 docker compose ps
 ```
 
-All 10 containers should show **"(healthy)"**. The API Gateway will be available at `http://localhost:8080`.
+All 14 containers should show **"(healthy)"**. The API Gateway will be available at `http://localhost:8080`.
 
 | Service | Port |
 |---------|------|
@@ -162,9 +178,14 @@ All 10 containers should show **"(healthy)"**. The API Gateway will be available
 | RestaurantService | 8082 |
 | GeoService | 8083 |
 | MenuService | 8084 |
+| OrderService | 8085 |
+| ReservationService | 8086 |
+| CheckoutService | 8089 |
 | auth_db (PostgreSQL) | 5433 |
 | restaurant_db (PostgreSQL) | 5434 |
 | geo_db (PostGIS) | 5435 |
+| order_db (PostgreSQL) | 5436 |
+| reservation_db (PostgreSQL) | 5437 |
 | menu_db (MongoDB) | 27018 |
 
 **Quick test:** Register a user through the gateway:

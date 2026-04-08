@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS restaurants (
        email VARCHAR(100),
        image_url TEXT,
        location_id BIGINT NOT NULL,
+       place_type VARCHAR(50) DEFAULT 'RESTAURANT',
        created_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -21,6 +22,50 @@ CREATE TABLE IF NOT EXISTS restaurant_profiles (
        latitude DOUBLE PRECISION NOT NULL,
        longitude DOUBLE PRECISION NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS restaurant_tables (
+       id SERIAL PRIMARY KEY,
+       restaurant_id BIGINT NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
+       table_number VARCHAR(20) NOT NULL,
+       seats INTEGER NOT NULL DEFAULT 2,
+       status VARCHAR(20) NOT NULL DEFAULT 'AVAILABLE'
+);
+
+CREATE INDEX IF NOT EXISTS idx_restaurant_tables_restaurant_id ON restaurant_tables(restaurant_id);
+CREATE INDEX IF NOT EXISTS idx_restaurant_tables_status ON restaurant_tables(restaurant_id, status);
+
+CREATE TABLE IF NOT EXISTS operating_hours (
+       id SERIAL PRIMARY KEY,
+       restaurant_id BIGINT NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
+       day_of_week VARCHAR(20) NOT NULL,
+       open_time TIME NOT NULL,
+       close_time TIME NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_operating_hours_restaurant_id ON operating_hours(restaurant_id);
+
+CREATE TABLE IF NOT EXISTS staff_assignments (
+       id SERIAL PRIMARY KEY,
+       restaurant_id BIGINT NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
+       user_id BIGINT NOT NULL,
+       role VARCHAR(50) NOT NULL,
+       active BOOLEAN NOT NULL DEFAULT true,
+       assigned_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_staff_assignments_restaurant_id ON staff_assignments(restaurant_id);
+CREATE INDEX IF NOT EXISTS idx_staff_assignments_user_id ON staff_assignments(user_id);
+
+CREATE TABLE IF NOT EXISTS restaurant_admins (
+       id SERIAL PRIMARY KEY,
+       restaurant_id BIGINT NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
+       user_id BIGINT NOT NULL,
+       assigned_at TIMESTAMP DEFAULT NOW(),
+       UNIQUE(restaurant_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_restaurant_admins_restaurant_id ON restaurant_admins(restaurant_id);
+CREATE INDEX IF NOT EXISTS idx_restaurant_admins_user_id ON restaurant_admins(user_id);
 
 INSERT INTO restaurants (id, owner_id, name, description, phone, email, image_url, location_id)
 VALUES
@@ -51,4 +96,3 @@ VALUES
 ON CONFLICT (restaurant_id) DO NOTHING;
 
 SELECT setval('restaurants_id_seq', GREATEST((SELECT COALESCE(MAX(id), 1) FROM restaurants), 1));
-

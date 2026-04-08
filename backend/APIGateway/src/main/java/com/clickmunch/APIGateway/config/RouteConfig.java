@@ -38,6 +38,12 @@ public class RouteConfig {
     @Value("${services.checkout.url:http://localhost:8089}")
     private String checkoutServiceUrl;
 
+    @Value("${services.rating.url:http://localhost:8088}")
+    private String ratingServiceUrl;
+
+    @Value("${services.notification.url:http://localhost:8087}")
+    private String notificationServiceUrl;
+
     @Bean
     public RouterFunction<ServerResponse> routes(JwtTokenUtil jwtTokenUtil) {
         JwtAuthenticationFilter jwtAuthenticationFilter = new JwtAuthenticationFilter(jwtTokenUtil);
@@ -77,7 +83,19 @@ public class RouteConfig {
                 .before(rewritePath("/checkout/(?<segment>.*)", "/api/checkout/${segment}"))
                 .filter(jwtAuthenticationFilter)
                 .build();
-        return auth.and(restaurant).and(menu).and(order).and(reservation).and(checkout);
+        RouterFunction<ServerResponse> rating = route("rating")
+                .route(path("/rating/**"), http())
+                .before(uri(ratingServiceUrl))
+                .before(rewritePath("/rating/(?<segment>.*)", "/api/ratings/${segment}"))
+                .filter(jwtAuthenticationFilter)
+                .build();
+        RouterFunction<ServerResponse> notification = route("notification")
+                .route(path("/notification/**"), http())
+                .before(uri(notificationServiceUrl))
+                .before(rewritePath("/notification/(?<segment>.*)", "/api/notifications/${segment}"))
+                .filter(jwtAuthenticationFilter)
+                .build();
+        return auth.and(restaurant).and(menu).and(order).and(reservation).and(checkout).and(rating).and(notification);
     }
 
     @Bean

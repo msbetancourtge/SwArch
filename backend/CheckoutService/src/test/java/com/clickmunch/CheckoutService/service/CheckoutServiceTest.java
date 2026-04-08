@@ -49,7 +49,8 @@ class CheckoutServiceTest {
                 ),
                 "InPerson",
                 reservationId,
-                "No onions"
+                "No onions",
+                "CARD"
         );
     }
 
@@ -125,7 +126,7 @@ class CheckoutServiceTest {
                         new CartItemRequest("a", "Roll A", 3, new BigDecimal("12.00")),
                         new CartItemRequest("b", "Roll B", 2, new BigDecimal("15.50"))
                 ),
-                "Reservation", null, null
+                "Reservation", null, null, null
         );
 
         when(orderClient.createOrder(any())).thenReturn(Map.of("id", 1, "status", "Preparing"));

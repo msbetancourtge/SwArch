@@ -16,5 +16,7 @@ public record ReservationResponse(
         String status,
         String notes,
         Long orderId,
+        Long tableId,
+        LocalDateTime checkedInAt,
         LocalDateTime createdAt
 ) {}

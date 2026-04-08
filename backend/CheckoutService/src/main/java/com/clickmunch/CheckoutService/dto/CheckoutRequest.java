@@ -15,5 +15,6 @@ public record CheckoutRequest(
         @NotEmpty @Valid List<CartItemRequest> items,
         String channel,
         Long reservationId,
-        String notes
+        String notes,
+        String paymentMethod
 ) {}
