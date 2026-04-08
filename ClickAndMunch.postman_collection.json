@@ -2,7 +2,7 @@
 	"info": {
 		"_postman_id": "click-and-munch-api",
 		"name": "ClickAndMunch API",
-		"description": "Full API collection for the ClickAndMunch microservices backend.\n\n**Gateway:** http://localhost:8080\n\n**Services:**\n| Service | Port | Gateway Path |\n|---------|------|--------------|\n| AuthService | 8081 | /auth/** |\n| RestaurantService | 8082 | /restaurant/** |\n| GeoService | 8083 | (internal only) |\n| MenuService | 8084 | /menu/** |\n| OrderService | 8085 | /order/** |\n| ReservationService | 8086 | /reservation/** |\n| CheckoutService | 8089 | /checkout/** |\n\n**Flow:**\n1. Register a user\n2. Login to get a JWT token (auto-saved to `token` variable)\n3. Use protected Restaurant, Menu, Order, Reservation, and Checkout endpoints\n\n**Auth routes** are public. All other routes require a Bearer token.",
+		"description": "Full API collection for the ClickAndMunch microservices backend.\n\n**Gateway:** http://localhost:8080\n\n**Services:**\n| Service | Port | Gateway Path |\n|---------|------|--------------|\n| AuthService | 8081 | /auth/** |\n| RestaurantService | 8082 | /restaurant/** |\n| GeoService | 8083 | (internal only) |\n| MenuService | 8084 | /menu/** |\n| OrderService | 8085 | /order/** |\n| ReservationService | 8086 | /reservation/** |\n| NotificationService | 8087 | /notification/** |\n| RatingService | 8088 | /rating/** |\n| CheckoutService | 8089 | /checkout/** |\n\n**Flow:**\n1. Register a user\n2. Login to get a JWT token (auto-saved to `token` variable)\n3. Use protected Restaurant, Menu, Order, Reservation, Checkout, Rating, and Notification endpoints\n\n**Auth routes** are public. All other routes require a Bearer token.",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
 	"variable": [
@@ -45,6 +45,34 @@
 		{
 			"key": "customerId",
 			"value": "1"
+		},
+		{
+			"key": "waiterId",
+			"value": "1"
+		},
+		{
+			"key": "tableId",
+			"value": "1"
+		},
+		{
+			"key": "assignmentId",
+			"value": "1"
+		},
+		{
+			"key": "hoursId",
+			"value": "1"
+		},
+		{
+			"key": "callId",
+			"value": "1"
+		},
+		{
+			"key": "ratingId",
+			"value": "1"
+		},
+		{
+			"key": "notificationId",
+			"value": "1"
 		}
 	],
 	"item": [
@@ -84,8 +112,13 @@
 						},
 						"url": {
 							"raw": "{{baseUrl}}/auth/register",
-							"host": ["{{baseUrl}}"],
-							"path": ["auth", "register"]
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"auth",
+								"register"
+							]
 						},
 						"description": "Register a new user. Roles: CUSTOMER, OWNER"
 					},
@@ -123,8 +156,13 @@
 						},
 						"url": {
 							"raw": "{{baseUrl}}/auth/register",
-							"host": ["{{baseUrl}}"],
-							"path": ["auth", "register"]
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"auth",
+								"register"
+							]
 						},
 						"description": "Register a restaurant owner account"
 					},
@@ -162,8 +200,13 @@
 						},
 						"url": {
 							"raw": "{{baseUrl}}/auth/login",
-							"host": ["{{baseUrl}}"],
-							"path": ["auth", "login"]
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"auth",
+								"login"
+							]
 						},
 						"description": "Login and get a JWT token. The token is automatically saved to the `token` collection variable."
 					},
@@ -176,8 +219,14 @@
 						"header": [],
 						"url": {
 							"raw": "{{baseUrl}}/auth/users/{{userId}}",
-							"host": ["{{baseUrl}}"],
-							"path": ["auth", "users", "{{userId}}"]
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"auth",
+								"users",
+								"{{userId}}"
+							]
 						},
 						"description": "Get user info by user ID. Returns username and role."
 					},
@@ -199,8 +248,14 @@
 						},
 						"url": {
 							"raw": "http://localhost:8081/auth/password-reset/request",
-							"host": ["http://localhost:8081"],
-							"path": ["auth", "password-reset", "request"]
+							"host": [
+								"http://localhost:8081"
+							],
+							"path": [
+								"auth",
+								"password-reset",
+								"request"
+							]
 						},
 						"description": "Request a password reset email. NOTE: This endpoint is called directly on AuthService (port 8081) because the controller path doesn't follow the /api prefix convention."
 					},
@@ -222,10 +277,236 @@
 						},
 						"url": {
 							"raw": "http://localhost:8081/auth/password-reset/confirm",
-							"host": ["http://localhost:8081"],
-							"path": ["auth", "password-reset", "confirm"]
+							"host": [
+								"http://localhost:8081"
+							],
+							"path": [
+								"auth",
+								"password-reset",
+								"confirm"
+							]
 						},
 						"description": "Confirm a password reset with the token received via email. NOTE: Direct call to AuthService (port 8081)."
+					},
+					"response": []
+				},
+				{
+					"name": "Staff Invite",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/auth/staff-invite",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"auth",
+								"staff-invite"
+							]
+						},
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"restaurantId\": 1001,\n  \"email\": \"staff@example.com\",\n  \"role\": \"WAITER\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Register Staff",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/auth/register/staff",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"auth",
+								"register",
+								"staff"
+							]
+						},
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"inviteToken\": \"paste-token-here\",\n  \"name\": \"Staff Member\",\n  \"username\": \"staffuser\",\n  \"password\": \"123456\",\n  \"governmentId\": \"CC-123456\",\n  \"profileImageUrl\": \"\",\n  \"address\": \"Bogota\",\n  \"phone\": \"+57-300-000-0099\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Approve User",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/auth/users/{{userId}}/approve",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"auth",
+								"users",
+								"{{userId}}",
+								"approve"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Reject User",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/auth/users/{{userId}}/reject",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"auth",
+								"users",
+								"{{userId}}",
+								"reject"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Pending Users",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/auth/users/pending",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"auth",
+								"users",
+								"pending"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update User Profile",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/auth/users/{{userId}}/profile",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"auth",
+								"users",
+								"{{userId}}",
+								"profile"
+							]
+						},
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"phone\": \"+57-300-111-2222\",\n  \"bio\": \"Updated bio\",\n  \"profileImageUrl\": \"\",\n  \"address\": \"Medellin\",\n  \"governmentId\": \"CC-999\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Users by Role",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/auth/users/role/RESTAURANT_MANAGER",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"auth",
+								"users",
+								"role",
+								"RESTAURANT_MANAGER"
+							]
+						}
 					},
 					"response": []
 				}
@@ -277,8 +558,12 @@
 						},
 						"url": {
 							"raw": "{{baseUrl}}/restaurant",
-							"host": ["{{baseUrl}}"],
-							"path": ["restaurant"]
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"restaurant"
+							]
 						},
 						"description": "Create a new restaurant. Requires OWNER role."
 					},
@@ -291,8 +576,13 @@
 						"header": [],
 						"url": {
 							"raw": "{{baseUrl}}/restaurant/{{restaurantId}}",
-							"host": ["{{baseUrl}}"],
-							"path": ["restaurant", "{{restaurantId}}"]
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"restaurant",
+								"{{restaurantId}}"
+							]
 						},
 						"description": "Get a restaurant by its ID"
 					},
@@ -305,8 +595,14 @@
 						"header": [],
 						"url": {
 							"raw": "{{baseUrl}}/restaurant/owner/{{userId}}",
-							"host": ["{{baseUrl}}"],
-							"path": ["restaurant", "owner", "{{userId}}"]
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"restaurant",
+								"owner",
+								"{{userId}}"
+							]
 						},
 						"description": "Get all restaurants owned by a specific user"
 					},
@@ -328,8 +624,13 @@
 						},
 						"url": {
 							"raw": "{{baseUrl}}/restaurant/nearby",
-							"host": ["{{baseUrl}}"],
-							"path": ["restaurant", "nearby"]
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"restaurant",
+								"nearby"
+							]
 						},
 						"description": "Search for restaurants near a given location"
 					},
@@ -342,10 +643,577 @@
 						"header": [],
 						"url": {
 							"raw": "{{baseUrl}}/restaurant/{{restaurantId}}/details",
-							"host": ["{{baseUrl}}"],
-							"path": ["restaurant", "{{restaurantId}}", "details"]
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"restaurant",
+								"{{restaurantId}}",
+								"details"
+							]
 						},
 						"description": "Get full restaurant details including address, coordinates, and menu categories with items"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Restaurant Cards",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/restaurant/cards",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"restaurant",
+								"cards"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Restaurants by Admin",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/restaurant/admin/{{userId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"restaurant",
+								"admin",
+								"{{userId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Table",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/restaurant/{{restaurantId}}/tables",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"restaurant",
+								"{{restaurantId}}",
+								"tables"
+							]
+						},
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"tableNumber\": \"T1\",\n  \"seats\": 4\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Tables",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/restaurant/{{restaurantId}}/tables",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"restaurant",
+								"{{restaurantId}}",
+								"tables"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Available Tables",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/restaurant/{{restaurantId}}/tables/available",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"restaurant",
+								"{{restaurantId}}",
+								"tables",
+								"available"
+							],
+							"query": [
+								{
+									"key": "partySize",
+									"value": "2"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Table Status",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/restaurant/tables/{{tableId}}/status",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"restaurant",
+								"tables",
+								"{{tableId}}",
+								"status"
+							],
+							"query": [
+								{
+									"key": "status",
+									"value": "OCCUPIED"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Table",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/restaurant/tables/{{tableId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"restaurant",
+								"tables",
+								"{{tableId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Operating Hours",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/restaurant/{{restaurantId}}/hours",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"restaurant",
+								"{{restaurantId}}",
+								"hours"
+							]
+						},
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"dayOfWeek\": \"MONDAY\",\n  \"openTime\": \"08:00\",\n  \"closeTime\": \"22:00\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Operating Hours",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/restaurant/{{restaurantId}}/hours",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"restaurant",
+								"{{restaurantId}}",
+								"hours"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Operating Hours",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/restaurant/hours/{{hoursId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"restaurant",
+								"hours",
+								"{{hoursId}}"
+							]
+						},
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"dayOfWeek\": \"MONDAY\",\n  \"openTime\": \"09:00\",\n  \"closeTime\": \"23:00\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Operating Hours",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/restaurant/hours/{{hoursId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"restaurant",
+								"hours",
+								"{{hoursId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Assign Staff",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/restaurant/{{restaurantId}}/staff",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"restaurant",
+								"{{restaurantId}}",
+								"staff"
+							]
+						},
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"userId\": 3,\n  \"role\": \"WAITER\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Staff",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/restaurant/{{restaurantId}}/staff",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"restaurant",
+								"{{restaurantId}}",
+								"staff"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Staff by Role",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/restaurant/{{restaurantId}}/staff/WAITER",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"restaurant",
+								"{{restaurantId}}",
+								"staff",
+								"WAITER"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Deactivate Staff",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/restaurant/staff/{{assignmentId}}/deactivate",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"restaurant",
+								"staff",
+								"{{assignmentId}}",
+								"deactivate"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Remove Staff",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/restaurant/staff/{{assignmentId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"restaurant",
+								"staff",
+								"{{assignmentId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Add Admin",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/restaurant/{{restaurantId}}/admins",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"restaurant",
+								"{{restaurantId}}",
+								"admins"
+							]
+						},
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"userId\": 2\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Admins",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/restaurant/{{restaurantId}}/admins",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"restaurant",
+								"{{restaurantId}}",
+								"admins"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Remove Admin",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/restaurant/{{restaurantId}}/admins/{{userId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"restaurant",
+								"{{restaurantId}}",
+								"admins",
+								"{{userId}}"
+							]
+						}
 					},
 					"response": []
 				}
@@ -381,8 +1249,12 @@
 						},
 						"url": {
 							"raw": "{{baseUrl}}/menu",
-							"host": ["{{baseUrl}}"],
-							"path": ["menu"]
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"menu"
+							]
 						},
 						"description": "Create a complete menu with categories and items in one request. Categories: ENTRADA, PLATO, POSTRE, BEBIDA, ENSALADA, ADICIONAL"
 					},
@@ -420,8 +1292,13 @@
 						},
 						"url": {
 							"raw": "{{baseUrl}}/menu/categories",
-							"host": ["{{baseUrl}}"],
-							"path": ["menu", "categories"]
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"menu",
+								"categories"
+							]
 						},
 						"description": "Create a single menu category. Values: ENTRADA, PLATO, POSTRE, BEBIDA, ENSALADA, ADICIONAL"
 					},
@@ -434,8 +1311,14 @@
 						"header": [],
 						"url": {
 							"raw": "{{baseUrl}}/menu/categories/{{categoryId}}",
-							"host": ["{{baseUrl}}"],
-							"path": ["menu", "categories", "{{categoryId}}"]
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"menu",
+								"categories",
+								"{{categoryId}}"
+							]
 						},
 						"description": "Get a menu category by its MongoDB ObjectId"
 					},
@@ -457,8 +1340,14 @@
 						},
 						"url": {
 							"raw": "{{baseUrl}}/menu/categories/{{categoryId}}",
-							"host": ["{{baseUrl}}"],
-							"path": ["menu", "categories", "{{categoryId}}"]
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"menu",
+								"categories",
+								"{{categoryId}}"
+							]
 						},
 						"description": "Update a menu category"
 					},
@@ -471,8 +1360,14 @@
 						"header": [],
 						"url": {
 							"raw": "{{baseUrl}}/menu/categories/{{categoryId}}",
-							"host": ["{{baseUrl}}"],
-							"path": ["menu", "categories", "{{categoryId}}"]
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"menu",
+								"categories",
+								"{{categoryId}}"
+							]
 						},
 						"description": "Delete a menu category by ID"
 					},
@@ -526,8 +1421,15 @@
 						},
 						"url": {
 							"raw": "{{baseUrl}}/menu/categories/{{categoryId}}/items",
-							"host": ["{{baseUrl}}"],
-							"path": ["menu", "categories", "{{categoryId}}", "items"]
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"menu",
+								"categories",
+								"{{categoryId}}",
+								"items"
+							]
 						},
 						"description": "Add a new item to a menu category"
 					},
@@ -540,8 +1442,14 @@
 						"header": [],
 						"url": {
 							"raw": "{{baseUrl}}/menu/items/{{itemId}}",
-							"host": ["{{baseUrl}}"],
-							"path": ["menu", "items", "{{itemId}}"]
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"menu",
+								"items",
+								"{{itemId}}"
+							]
 						},
 						"description": "Get a menu item by its MongoDB ObjectId"
 					},
@@ -563,8 +1471,14 @@
 						},
 						"url": {
 							"raw": "{{baseUrl}}/menu/items/{{itemId}}",
-							"host": ["{{baseUrl}}"],
-							"path": ["menu", "items", "{{itemId}}"]
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"menu",
+								"items",
+								"{{itemId}}"
+							]
 						},
 						"description": "Update a menu item"
 					},
@@ -577,8 +1491,14 @@
 						"header": [],
 						"url": {
 							"raw": "{{baseUrl}}/menu/items/{{itemId}}",
-							"host": ["{{baseUrl}}"],
-							"path": ["menu", "items", "{{itemId}}"]
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"menu",
+								"items",
+								"{{itemId}}"
+							]
 						},
 						"description": "Delete a menu item by ID"
 					},
@@ -607,8 +1527,14 @@
 						"header": [],
 						"url": {
 							"raw": "{{baseUrl}}/menu/restaurants/{{restaurantId}}",
-							"host": ["{{baseUrl}}"],
-							"path": ["menu", "restaurants", "{{restaurantId}}"]
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"menu",
+								"restaurants",
+								"{{restaurantId}}"
+							]
 						},
 						"description": "Get all menu categories for a restaurant"
 					},
@@ -621,8 +1547,15 @@
 						"header": [],
 						"url": {
 							"raw": "{{baseUrl}}/menu/restaurants/{{restaurantId}}/items",
-							"host": ["{{baseUrl}}"],
-							"path": ["menu", "restaurants", "{{restaurantId}}", "items"]
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"menu",
+								"restaurants",
+								"{{restaurantId}}",
+								"items"
+							]
 						},
 						"description": "Get all menu items for a restaurant (flat list)"
 					},
@@ -635,8 +1568,14 @@
 						"header": [],
 						"url": {
 							"raw": "{{baseUrl}}/menu/restaurants/{{restaurantId}}",
-							"host": ["{{baseUrl}}"],
-							"path": ["menu", "restaurants", "{{restaurantId}}"]
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"menu",
+								"restaurants",
+								"{{restaurantId}}"
+							]
 						},
 						"description": "Delete the entire menu for a restaurant"
 					},
@@ -690,8 +1629,12 @@
 						},
 						"url": {
 							"raw": "{{baseUrl}}/order",
-							"host": ["{{baseUrl}}"],
-							"path": ["order"]
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"order"
+							]
 						},
 						"description": "Create a new order. Channel: InPerson or Reservation."
 					},
@@ -704,8 +1647,12 @@
 						"header": [],
 						"url": {
 							"raw": "{{baseUrl}}/order",
-							"host": ["{{baseUrl}}"],
-							"path": ["order"]
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"order"
+							]
 						},
 						"description": "Get all orders sorted by date descending"
 					},
@@ -718,8 +1665,13 @@
 						"header": [],
 						"url": {
 							"raw": "{{baseUrl}}/order/{{orderId}}",
-							"host": ["{{baseUrl}}"],
-							"path": ["order", "{{orderId}}"]
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"order",
+								"{{orderId}}"
+							]
 						},
 						"description": "Get a single order by ID, including its items"
 					},
@@ -732,8 +1684,14 @@
 						"header": [],
 						"url": {
 							"raw": "{{baseUrl}}/order/restaurant/{{restaurantId}}",
-							"host": ["{{baseUrl}}"],
-							"path": ["order", "restaurant", "{{restaurantId}}"]
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"order",
+								"restaurant",
+								"{{restaurantId}}"
+							]
 						},
 						"description": "Get all orders for a specific restaurant"
 					},
@@ -746,8 +1704,16 @@
 						"header": [],
 						"url": {
 							"raw": "{{baseUrl}}/order/restaurant/{{restaurantId}}/status/Preparing",
-							"host": ["{{baseUrl}}"],
-							"path": ["order", "restaurant", "{{restaurantId}}", "status", "Preparing"]
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"order",
+								"restaurant",
+								"{{restaurantId}}",
+								"status",
+								"Preparing"
+							]
 						},
 						"description": "Filter orders by restaurant and status. Statuses: Preparing, Ready, Served, Delivered, Cancelled"
 					},
@@ -760,8 +1726,14 @@
 						"header": [],
 						"url": {
 							"raw": "{{baseUrl}}/order/customer/{{customerId}}",
-							"host": ["{{baseUrl}}"],
-							"path": ["order", "customer", "{{customerId}}"]
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"order",
+								"customer",
+								"{{customerId}}"
+							]
 						},
 						"description": "Get all orders for a specific customer"
 					},
@@ -783,8 +1755,13 @@
 						},
 						"url": {
 							"raw": "{{baseUrl}}/order/{{orderId}}",
-							"host": ["{{baseUrl}}"],
-							"path": ["order", "{{orderId}}"]
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"order",
+								"{{orderId}}"
+							]
 						},
 						"description": "Update order notes and ETA"
 					},
@@ -806,8 +1783,14 @@
 						},
 						"url": {
 							"raw": "{{baseUrl}}/order/{{orderId}}/status",
-							"host": ["{{baseUrl}}"],
-							"path": ["order", "{{orderId}}", "status"]
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"order",
+								"{{orderId}}",
+								"status"
+							]
 						},
 						"description": "Change order status. Values: Preparing, Ready, Served, Delivered, Cancelled"
 					},
@@ -820,10 +1803,297 @@
 						"header": [],
 						"url": {
 							"raw": "{{baseUrl}}/order/{{orderId}}",
-							"host": ["{{baseUrl}}"],
-							"path": ["order", "{{orderId}}"]
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"order",
+								"{{orderId}}"
+							]
 						},
 						"description": "Delete an order and all its items"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Orders by Waiter",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/order/waiter/{{waiterId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"order",
+								"waiter",
+								"{{waiterId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Add Items to Order",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/order/{{orderId}}/items",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"order",
+								"{{orderId}}",
+								"items"
+							]
+						},
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"items\": [\n    {\n      \"menuItemId\": \"item1\",\n      \"productName\": \"Extra Fries\",\n      \"quantity\": 1,\n      \"unitPrice\": 5000\n    }\n  ]\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Assign Waiter",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/order/{{orderId}}/assign-waiter",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"order",
+								"{{orderId}}",
+								"assign-waiter"
+							],
+							"query": [
+								{
+									"key": "waiterId",
+									"value": "{{waiterId}}"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Assign Table",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/order/{{orderId}}/assign-table",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"order",
+								"{{orderId}}",
+								"assign-table"
+							],
+							"query": [
+								{
+									"key": "tableId",
+									"value": "{{tableId}}"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Add Tip",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/order/{{orderId}}/tip",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"order",
+								"{{orderId}}",
+								"tip"
+							]
+						},
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"tipAmount\": 5000,\n  \"waiterComment\": \"Great service!\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Waiter Call",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/order/waiter-call",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"order",
+								"waiter-call"
+							]
+						},
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"orderId\": 1,\n  \"tableId\": 1,\n  \"restaurantId\": 1001,\n  \"message\": \"Need assistance\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Pending Waiter Calls",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/order/waiter-calls/restaurant/{{restaurantId}}/pending",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"order",
+								"waiter-calls",
+								"restaurant",
+								"{{restaurantId}}",
+								"pending"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Acknowledge Waiter Call",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/order/waiter-calls/{{callId}}/acknowledge",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"order",
+								"waiter-calls",
+								"{{callId}}",
+								"acknowledge"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Resolve Waiter Call",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/order/waiter-calls/{{callId}}/resolve",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"order",
+								"waiter-calls",
+								"{{callId}}",
+								"resolve"
+							]
+						}
 					},
 					"response": []
 				}
@@ -875,8 +2145,12 @@
 						},
 						"url": {
 							"raw": "{{baseUrl}}/reservation",
-							"host": ["{{baseUrl}}"],
-							"path": ["reservation"]
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"reservation"
+							]
 						},
 						"description": "Create a new reservation. Date must be today or in the future."
 					},
@@ -889,8 +2163,12 @@
 						"header": [],
 						"url": {
 							"raw": "{{baseUrl}}/reservation",
-							"host": ["{{baseUrl}}"],
-							"path": ["reservation"]
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"reservation"
+							]
 						},
 						"description": "Get all reservations sorted by date descending"
 					},
@@ -903,8 +2181,13 @@
 						"header": [],
 						"url": {
 							"raw": "{{baseUrl}}/reservation/{{reservationId}}",
-							"host": ["{{baseUrl}}"],
-							"path": ["reservation", "{{reservationId}}"]
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"reservation",
+								"{{reservationId}}"
+							]
 						},
 						"description": "Get a single reservation by ID"
 					},
@@ -917,8 +2200,14 @@
 						"header": [],
 						"url": {
 							"raw": "{{baseUrl}}/reservation/restaurant/{{restaurantId}}",
-							"host": ["{{baseUrl}}"],
-							"path": ["reservation", "restaurant", "{{restaurantId}}"]
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"reservation",
+								"restaurant",
+								"{{restaurantId}}"
+							]
 						},
 						"description": "Get all reservations for a specific restaurant"
 					},
@@ -931,8 +2220,14 @@
 						"header": [],
 						"url": {
 							"raw": "{{baseUrl}}/reservation/customer/{{customerId}}",
-							"host": ["{{baseUrl}}"],
-							"path": ["reservation", "customer", "{{customerId}}"]
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"reservation",
+								"customer",
+								"{{customerId}}"
+							]
 						},
 						"description": "Get all reservations for a specific customer"
 					},
@@ -945,8 +2240,14 @@
 						"header": [],
 						"url": {
 							"raw": "{{baseUrl}}/reservation/status/Pendiente",
-							"host": ["{{baseUrl}}"],
-							"path": ["reservation", "status", "Pendiente"]
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"reservation",
+								"status",
+								"Pendiente"
+							]
 						},
 						"description": "Filter reservations by status. Values: Pendiente, Confirmada, Cancelada, Completada"
 					},
@@ -959,8 +2260,16 @@
 						"header": [],
 						"url": {
 							"raw": "{{baseUrl}}/reservation/restaurant/{{restaurantId}}/date/2026-04-15",
-							"host": ["{{baseUrl}}"],
-							"path": ["reservation", "restaurant", "{{restaurantId}}", "date", "2026-04-15"]
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"reservation",
+								"restaurant",
+								"{{restaurantId}}",
+								"date",
+								"2026-04-15"
+							]
 						},
 						"description": "Get all reservations for a restaurant on a specific date (ISO format: YYYY-MM-DD)"
 					},
@@ -982,8 +2291,14 @@
 						},
 						"url": {
 							"raw": "{{baseUrl}}/reservation/{{reservationId}}/status",
-							"host": ["{{baseUrl}}"],
-							"path": ["reservation", "{{reservationId}}", "status"]
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"reservation",
+								"{{reservationId}}",
+								"status"
+							]
 						},
 						"description": "Change reservation status. Values: Pendiente, Confirmada, Cancelada, Completada"
 					},
@@ -1005,8 +2320,14 @@
 						},
 						"url": {
 							"raw": "{{baseUrl}}/reservation/{{reservationId}}/link-order",
-							"host": ["{{baseUrl}}"],
-							"path": ["reservation", "{{reservationId}}", "link-order"]
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"reservation",
+								"{{reservationId}}",
+								"link-order"
+							]
 						},
 						"description": "Associate an existing order with this reservation"
 					},
@@ -1019,10 +2340,139 @@
 						"header": [],
 						"url": {
 							"raw": "{{baseUrl}}/reservation/{{reservationId}}",
-							"host": ["{{baseUrl}}"],
-							"path": ["reservation", "{{reservationId}}"]
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"reservation",
+								"{{reservationId}}"
+							]
 						},
 						"description": "Delete a reservation by ID"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Suggested Times",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/reservation/restaurant/{{restaurantId}}/suggested-times",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"reservation",
+								"restaurant",
+								"{{restaurantId}}",
+								"suggested-times"
+							],
+							"query": [
+								{
+									"key": "date",
+									"value": "2026-04-15"
+								},
+								{
+									"key": "partySize",
+									"value": "4"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Available Tables",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/reservation/restaurant/{{restaurantId}}/available-tables",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"reservation",
+								"restaurant",
+								"{{restaurantId}}",
+								"available-tables"
+							],
+							"query": [
+								{
+									"key": "partySize",
+									"value": "2"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Assign Table to Reservation",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/reservation/{{reservationId}}/assign-table",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"reservation",
+								"{{reservationId}}",
+								"assign-table"
+							],
+							"query": [
+								{
+									"key": "tableId",
+									"value": "{{tableId}}"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Check In",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/reservation/{{reservationId}}/check-in",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"reservation",
+								"{{reservationId}}",
+								"check-in"
+							]
+						}
 					},
 					"response": []
 				}
@@ -1074,8 +2524,12 @@
 						},
 						"url": {
 							"raw": "{{baseUrl}}/checkout",
-							"host": ["{{baseUrl}}"],
-							"path": ["checkout"]
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"checkout"
+							]
 						},
 						"description": "Process a full checkout. Creates an order via OrderService. If reservationId is provided, links the order to the reservation."
 					},
@@ -1113,8 +2567,12 @@
 						},
 						"url": {
 							"raw": "{{baseUrl}}/checkout",
-							"host": ["{{baseUrl}}"],
-							"path": ["checkout"]
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"checkout"
+							]
 						},
 						"description": "Checkout with an existing reservation. The order will be automatically linked to the reservation."
 					},
@@ -1142,8 +2600,14 @@
 						},
 						"url": {
 							"raw": "http://localhost:8083/api/geo/locations",
-							"host": ["http://localhost:8083"],
-							"path": ["api", "geo", "locations"]
+							"host": [
+								"http://localhost:8083"
+							],
+							"path": [
+								"api",
+								"geo",
+								"locations"
+							]
 						},
 						"description": "Create a new geo location. Types: RESTAURANT, BAR, CUSTOMER. Note: This is typically called internally by RestaurantService."
 					},
@@ -1165,8 +2629,14 @@
 						},
 						"url": {
 							"raw": "http://localhost:8083/api/geo/nearby",
-							"host": ["http://localhost:8083"],
-							"path": ["api", "geo", "nearby"]
+							"host": [
+								"http://localhost:8083"
+							],
+							"path": [
+								"api",
+								"geo",
+								"nearby"
+							]
 						},
 						"description": "Search for locations near a given coordinate within a radius"
 					},
@@ -1179,10 +2649,518 @@
 						"header": [],
 						"url": {
 							"raw": "http://localhost:8083/api/geo/locations",
-							"host": ["http://localhost:8083"],
-							"path": ["api", "geo", "locations"]
+							"host": [
+								"http://localhost:8083"
+							],
+							"path": [
+								"api",
+								"geo",
+								"locations"
+							]
 						},
 						"description": "Get all stored geo locations"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Rating",
+			"item": [
+				{
+					"name": "Rate Restaurant",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/rating/restaurant",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"rating",
+								"restaurant"
+							]
+						},
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"customerId\": 1,\n  \"customerName\": \"Test User\",\n  \"restaurantId\": 1001,\n  \"restaurantName\": \"Kanka Peru\",\n  \"orderId\": 1,\n  \"score\": 5,\n  \"review\": \"Excellent food!\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Restaurant Ratings",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/rating/restaurant/{{restaurantId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"rating",
+								"restaurant",
+								"{{restaurantId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Restaurant Rating Summary",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/rating/restaurant/{{restaurantId}}/summary",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"rating",
+								"restaurant",
+								"{{restaurantId}}",
+								"summary"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Customer Ratings",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/rating/customer/{{customerId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"rating",
+								"customer",
+								"{{customerId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Rating",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/rating/{{ratingId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"rating",
+								"{{ratingId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Rate Waiter",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/rating/waiter",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"rating",
+								"waiter"
+							]
+						},
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"customerId\": 1,\n  \"customerName\": \"Test User\",\n  \"waiterId\": 3,\n  \"waiterName\": \"Staff Member\",\n  \"restaurantId\": 1001,\n  \"orderId\": 1,\n  \"score\": 4,\n  \"comment\": \"Very attentive\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Waiter Ratings",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/rating/waiter/{{waiterId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"rating",
+								"waiter",
+								"{{waiterId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Waiter Rating Summary",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/rating/waiter/{{waiterId}}/summary",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"rating",
+								"waiter",
+								"{{waiterId}}",
+								"summary"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Waiter Ratings by Restaurant",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/rating/waiter/restaurant/{{restaurantId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"rating",
+								"waiter",
+								"restaurant",
+								"{{restaurantId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Waiter Rating",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/rating/waiter/{{ratingId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"rating",
+								"waiter",
+								"{{ratingId}}"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Notification",
+			"item": [
+				{
+					"name": "Create Notification",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/notification",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"notification"
+							]
+						},
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"userId\": 1,\n  \"restaurantId\": 1001,\n  \"type\": \"ORDER\",\n  \"title\": \"Order Ready\",\n  \"message\": \"Your order #1 is ready for pickup\",\n  \"orderId\": 1\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get User Notifications",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/notification/user/{{userId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"notification",
+								"user",
+								"{{userId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Unread Notifications",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/notification/user/{{userId}}/unread",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"notification",
+								"user",
+								"{{userId}}",
+								"unread"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Unread Count",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/notification/user/{{userId}}/unread-count",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"notification",
+								"user",
+								"{{userId}}",
+								"unread-count"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Restaurant Notifications",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/notification/restaurant/{{restaurantId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"notification",
+								"restaurant",
+								"{{restaurantId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Mark Notification Read",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/notification/{{notificationId}}/read",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"notification",
+								"{{notificationId}}",
+								"read"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Mark All Read",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/notification/user/{{userId}}/read-all",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"notification",
+								"user",
+								"{{userId}}",
+								"read-all"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Notification",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/notification/{{notificationId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"notification",
+								"{{notificationId}}"
+							]
+						}
 					},
 					"response": []
 				}
