@@ -2,7 +2,7 @@
 	"info": {
 		"_postman_id": "click-and-munch-api",
 		"name": "ClickAndMunch API",
-		"description": "Full API collection for the ClickAndMunch microservices backend.\n\n**Gateway:** http://localhost:8080\n\n**Services:**\n| Service | Port | Gateway Path |\n|---------|------|--------------|\n| AuthService | 8081 | /auth/** |\n| RestaurantService | 8082 | /restaurant/** |\n| GeoService | 8083 | (internal only) |\n| MenuService | 8084 | /menu/** |\n| OrderService | 8085 | /order/** |\n| ReservationService | 8086 | /reservation/** |\n| NotificationService | 8087 | /notification/** |\n| RatingService | 8088 | /rating/** |\n| CheckoutService | 8089 | /checkout/** |\n\n**Flow:**\n1. Register a user\n2. Login to get a JWT token (auto-saved to `token` variable)\n3. Use protected Restaurant, Menu, Order, Reservation, Checkout, Rating, and Notification endpoints\n\n**Auth routes** are public. All other routes require a Bearer token.",
+		"description": "Full API collection for the ClickAndMunch microservices backend.\n\n**Gateway:** http://localhost:8080\n\n**Services:**\n| Service | Port | Gateway Path |\n|---------|------|--------------|\n| AuthService | 8081 | /auth/** |\n| RestaurantService | 8082 | /restaurant/** |\n| GeoService | 8083 | (internal only) |\n| MenuService | 8084 | /menu/** |\n| OrderService | 8085 | /order/** |\n| ReservationService | 8086 | /reservation/** |\n| NotificationService | 8087 | /notification/** |\n| RatingService | 8088 | /rating/** |\n| CheckoutService | 8089 | /checkout/** |\n| RabbitMQ Management | 15672 | (direct — not through gateway) |\n\n**Async Messaging (RabbitMQ):**\nOrderService and ReservationService publish domain events to a RabbitMQ topic exchange (`clickmunch.events`). NotificationService consumes these events to auto-generate user notifications.\n- `order.created` / `order.status.changed` → `notification.order.queue`\n- `reservation.confirmed` / `reservation.cancelled` → `notification.reservation.queue`\n\n**Flow:**\n1. Register a user\n2. Login to get a JWT token (auto-saved to `token` variable)\n3. Use protected Restaurant, Menu, Order, Reservation, Checkout, Rating, and Notification endpoints\n4. Creating orders or changing reservation status triggers async notifications via RabbitMQ\n\n**Auth routes** are public. All other routes require a Bearer token.",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
 	"variable": [
@@ -73,6 +73,10 @@
 		{
 			"key": "notificationId",
 			"value": "1"
+		},
+		{
+			"key": "rabbitmqUrl",
+			"value": "http://localhost:15672"
 		}
 	],
 	"item": [
@@ -3159,6 +3163,184 @@
 							"path": [
 								"notification",
 								"{{notificationId}}"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "RabbitMQ Management",
+			"description": "RabbitMQ Management API endpoints for verifying the async messaging infrastructure. These go directly to the RabbitMQ Management UI (port 15672), not through the API Gateway.\n\nDefault credentials: mike / secret",
+			"item": [
+				{
+					"name": "Get Exchange Info",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "username",
+									"value": "mike",
+									"type": "string"
+								},
+								{
+									"key": "password",
+									"value": "secret",
+									"type": "string"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{rabbitmqUrl}}/api/exchanges/%2f/clickmunch.events",
+							"host": [
+								"{{rabbitmqUrl}}"
+							],
+							"path": [
+								"api",
+								"exchanges",
+								"%2f",
+								"clickmunch.events"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "List Queues",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "username",
+									"value": "mike",
+									"type": "string"
+								},
+								{
+									"key": "password",
+									"value": "secret",
+									"type": "string"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{rabbitmqUrl}}/api/queues",
+							"host": [
+								"{{rabbitmqUrl}}"
+							],
+							"path": [
+								"api",
+								"queues"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "List Bindings",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "username",
+									"value": "mike",
+									"type": "string"
+								},
+								{
+									"key": "password",
+									"value": "secret",
+									"type": "string"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{rabbitmqUrl}}/api/bindings/%2f",
+							"host": [
+								"{{rabbitmqUrl}}"
+							],
+							"path": [
+								"api",
+								"bindings",
+								"%2f"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Order Queue Details",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "username",
+									"value": "mike",
+									"type": "string"
+								},
+								{
+									"key": "password",
+									"value": "secret",
+									"type": "string"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{rabbitmqUrl}}/api/queues/%2f/notification.order.queue",
+							"host": [
+								"{{rabbitmqUrl}}"
+							],
+							"path": [
+								"api",
+								"queues",
+								"%2f",
+								"notification.order.queue"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Reservation Queue Details",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "username",
+									"value": "mike",
+									"type": "string"
+								},
+								{
+									"key": "password",
+									"value": "secret",
+									"type": "string"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{rabbitmqUrl}}/api/queues/%2f/notification.reservation.queue",
+							"host": [
+								"{{rabbitmqUrl}}"
+							],
+							"path": [
+								"api",
+								"queues",
+								"%2f",
+								"notification.reservation.queue"
 							]
 						}
 					},

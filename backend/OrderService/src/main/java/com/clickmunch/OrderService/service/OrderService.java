@@ -21,6 +21,8 @@ import com.clickmunch.OrderService.entity.OrderChannel;
 import com.clickmunch.OrderService.entity.OrderItem;
 import com.clickmunch.OrderService.entity.OrderStatus;
 import com.clickmunch.OrderService.entity.WaiterCall;
+import com.clickmunch.OrderService.event.OrderEvent;
+import com.clickmunch.OrderService.event.OrderEventPublisher;
 import com.clickmunch.OrderService.repository.OrderItemRepository;
 import com.clickmunch.OrderService.repository.OrderRepository;
 import com.clickmunch.OrderService.repository.WaiterCallRepository;
@@ -34,6 +36,7 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
     private final WaiterCallRepository waiterCallRepository;
+    private final OrderEventPublisher eventPublisher;
 
     @Transactional
     public OrderResponse createOrder(CreateOrderRequest request) {
@@ -74,6 +77,12 @@ public class OrderService {
                 .toList();
 
         List<OrderItem> savedItems = orderItemRepository.saveAll(items);
+
+        // Publish async event for notifications
+        eventPublisher.publishOrderCreated(OrderEvent.created(
+                savedOrder.getId(), savedOrder.getCustomerId(), savedOrder.getCustomerName(),
+                savedOrder.getRestaurantId(), savedOrder.getRestaurantName(), total));
+
         return toResponse(savedOrder, savedItems);
     }
 
@@ -148,11 +157,19 @@ public class OrderService {
                 .orElseThrow(() -> new IllegalArgumentException("Order not found: " + id));
 
         OrderStatus newStatus = OrderStatus.valueOf(request.status());
+        String previousStatus = order.getStatus().name();
         order.setStatus(newStatus);
         order.setUpdatedAt(LocalDateTime.now());
 
         Order updated = orderRepository.save(order);
         List<OrderItem> items = orderItemRepository.findByOrderId(id);
+
+        // Publish async event for notifications
+        eventPublisher.publishOrderStatusChanged(OrderEvent.statusChanged(
+                updated.getId(), updated.getCustomerId(), updated.getCustomerName(),
+                updated.getRestaurantId(), updated.getRestaurantName(),
+                newStatus.name(), previousStatus, updated.getTotal()));
+
         return toResponse(updated, items);
     }
 

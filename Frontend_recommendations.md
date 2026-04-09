@@ -436,13 +436,15 @@ PUT /notification/user/{userId}/read-all      # Mark all as read
 ### Notification Types
 | Type | Trigger |
 |---|---|
-| `ORDER_READY` | Chef marks order as Ready |
-| `ORDER_STATUS_CHANGED` | Any order status update |
+| `NEW_ORDER` | New order placed (auto-generated via RabbitMQ) |
+| `ORDER_READY` | Chef marks order as Ready (auto-generated via RabbitMQ) |
+| `ORDER_STATUS_CHANGED` | Any order status update (auto-generated via RabbitMQ) |
+| `RESERVATION_CONFIRMED` | Manager confirms reservation (auto-generated via RabbitMQ) |
+| `RESERVATION_CANCELLED` | Reservation cancelled (auto-generated via RabbitMQ) |
 | `WAITER_CALL` | Customer calls waiter |
-| `RESERVATION_CONFIRMED` | Manager confirms reservation |
-| `RESERVATION_CANCELLED` | Reservation cancelled |
-| `NEW_ORDER` | New order placed at restaurant |
 | `GENERAL` | Any other notification |
+
+> **Note:** Notifications for order and reservation events are now created **automatically** via RabbitMQ async messaging. When an order is created or its status changes, OrderService publishes an event to the `clickmunch.events` exchange. Similarly, when a reservation is confirmed or cancelled, ReservationService publishes an event. NotificationService consumes these events and creates notifications automatically — no manual `POST /notification/` call is needed for these cases.
 
 **Frontend recommendation:** When sending notifications from waiter/manager actions, call `POST /notification/` to create and push the notification:
 ```json
@@ -489,6 +491,8 @@ PUT /notification/user/{userId}/read-all      # Mark all as read
 | NotificationService | 8087 | PostgreSQL (notification_db) | 5439 |
 | RatingService | 8088 | PostgreSQL (rating_db) | 5438 |
 | CheckoutService | 8089 | — (stateless orchestrator) | — |
+| RabbitMQ (AMQP) | 5672 | — | — |
+| RabbitMQ (Management UI) | 15672 | — | — |
 
 ---
 
@@ -502,3 +506,4 @@ PUT /notification/user/{userId}/read-all      # Mark all as read
 6. **CORS** is configured on the Gateway — no need to handle it in individual services.
 7. **Operating hours** use `dayOfWeek` as integer: 1=Monday ... 7=Sunday.
 8. **Order channel**: `"InPerson"` for dine-in, `"Online"` for delivery/pickup.
+9. **Async notifications**: Order and reservation notifications are generated automatically by the backend via RabbitMQ. You don't need to call `POST /notification/` for these events—just listen to the SSE stream or poll for new notifications.

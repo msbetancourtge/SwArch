@@ -73,30 +73,61 @@ The architecture is built around independent microservices—authentication, res
 │ Svc  ││Service ││Svc ││Service││Service││ out  ││Service ││Service │
 │:8081 ││ :8082  ││8084││ :8085 ││ :8086 ││:8089 ││ :8088  ││ :8087  │
 └──┬───┘└─┬───┬──┘└─┬──┘└──┬────┘└──┬────┘└┬─┬─┬┘└──┬─────┘└──┬────┘
-   │      │   │     │      │        │      │ │ │    │          │
-   ▼      │   ▼     ▼      ▼        ▼      │ │ │    ▼          ▼
-┌─────┐   │┌─────┐┌──────┐┌───────┐┌─────────┐│ │ ┌───────┐┌───────────┐
-│auth │   ││ Geo ││menu  ││order  ││reserv.  ││ │ │rating ││notif.     │
-│_db  │   ││Serv.││_db   ││_db    ││  _db    ││ │ │_db    ││_db        │
-│PgSQL│   ││:8083││Mongo ││PgSQL  ││ PgSQL   ││ │ │PgSQL  ││PgSQL      │
-│:5433│   │└──┬──┘│:27018││:5436  ││ :5437   ││ │ │:5440  ││:5441      │
-└─────┘   │   │   └──────┘└───────┘└─────────┘│ │ └───────┘└───────────┘
-          ▼   ▼                 Calls via REST─┘ │
-   ┌──────────┐┌──────────┐  (Menu,Order,Reserv.)│
-   │restaur.  ││  geo_db  │     ┌────────────────┘
-   │  _db     ││  PostGIS │     │
-   │PostgreSQL││  :5435   │     │
-   │  :5434   │└──────────┘     │
-   └──────────┘                 ▼
+   │      │   │     │      │        │      │ │ │    │          ▲
+   ▼      │   ▼     ▼      │        │      │ │ │    ▼          │
+┌─────┐   │┌─────┐┌──────┐ │        │      │ │ │ ┌───────┐┌───────────┐
+│auth │   ││ Geo ││menu  │ │        │      │ │ │ │rating ││notif.     │
+│_db  │   ││Serv.││_db   │ │        │      │ │ │ │_db    ││_db        │
+│PgSQL│   ││:8083││Mongo │ │        │      │ │ │ │PgSQL  ││PgSQL      │
+│:5433│   │└──┬──┘│:27018│ │        │      │ │ │ │:5440  ││:5441      │
+└─────┘   │   │   └──────┘ │        │      │ │ │ └───────┘└───────────┘
+          ▼   ▼            │        │      │ │ │
+   ┌──────────┐┌──────────┐│        │      │ │ │
+   │restaur.  ││  geo_db  ││        │      │ │ │
+   │  _db     ││  PostGIS ││        │      │ │ │
+   │PostgreSQL││  :5435   ││        │      │ │ │
+   │  :5434   │└──────────┘│        │      │ │ │
+   └──────────┘            │        │      │ │ │
+                           ▼        ▼      │ │ │
+              ┌─────────────────────────┐   │ │ │
+              │   RabbitMQ (AMQP)       │   │ │ │
+              │   Port 5672 / 15672     │   │ │ │
+              │                         │   │ │ │
+              │  Exchange:              │   │ │ │
+              │   clickmunch.events     │   │ │ │
+              │   (topic)               │   │ │ │
+              │                         │   │ │ │
+              │  Queues:                │   │ │ │
+              │   notification.order    │   │ │ │
+              │   notification.reserv.  │───┼─┼─┘
+              └─────────────────────────┘   │ │
+                 ▲               ▲          │ │
+                 │               │          │ │
+          publish│        publish│          │ │
+        order.*  │   reservation.*          │ │
+                 │               │          │ │
+           OrderService    ReservationSvc   │ │
+                                            │ │
+                             Calls via REST─┘ │
+                           (Menu,Order,Reserv.)│
+                                ┌──────────────┘
+                                │
+                                ▼
+                          ┌──────────┐ ┌──────────┐ ┌──────────┐
+                          │ order_db │ │reserv_db │ │ menu_db  │
+                          │  PgSQL   │ │  PgSQL   │ │  MongoDB │
+                          │  :5436   │ │  :5437   │ │  :27018  │
+                          └──────────┘ └──────────┘ └──────────┘
 ```
 
 #### Architectural Styles Used
 
 | Style | Where Applied | Description |
 |-------|---------------|-------------|
-| **Microservices** | Entire backend | The system is decomposed into ten independently deployable services (AuthService, RestaurantService, GeoService, MenuService, OrderService, ReservationService, CheckoutService, RatingService, NotificationService, and API Gateway), each owning its own database (where applicable) and communicating via REST. |
+| **Microservices** | Entire backend | The system is decomposed into ten independently deployable services (AuthService, RestaurantService, GeoService, MenuService, OrderService, ReservationService, CheckoutService, RatingService, NotificationService, and API Gateway), each owning its own database (where applicable) and communicating via REST and asynchronous messaging. |
 | **API Gateway** | APIGateway service | A single entry point routes all external traffic, performs path rewriting, handles CORS, and enforces JWT authentication before forwarding requests to downstream services. |
 | **Saga Orchestrator** | CheckoutService | The checkout flow coordinates multiple services (Menu validation, Order creation, Reservation linking) through a centralized orchestrator, ensuring a consistent multi-step transaction without distributed locks. |
+| **Event-Driven / Async Messaging** | OrderService, ReservationService → NotificationService | Domain events (order created, status changed, reservation confirmed/cancelled) are published to a RabbitMQ topic exchange and consumed asynchronously by NotificationService to create user notifications. Decouples producers from consumers and improves resilience. |
 | **Layered Architecture** | Each microservice | Every service follows a Controller → Service → Repository layering, separating HTTP handling, business logic, and data access concerns. |
 | **Client-Server** | Frontend ↔ Backend | The mobile app and web dashboard act as clients that consume the backend's RESTful API through the gateway. |
 | **Pipe-and-Filter** | Gateway request pipeline | Incoming requests pass through a pipeline of filters (JWT authentication, path rewriting, URI resolution) before reaching the target service handler. |
@@ -112,11 +143,12 @@ The architecture is built around independent microservices—authentication, res
 | **RestaurantService** | Restaurant CRUD, owner validation, nearby search orchestration, restaurant details aggregation, restaurant cards/profiles, table management, operating hours, staff assignments, multi-admin management. | Spring Boot 4, Spring Data JDBC, PostgreSQL |
 | **GeoService** | Geospatial storage and proximity queries for restaurant locations. | Spring Boot 4, Spring Data JDBC, PostGIS |
 | **MenuService** | Menu category and item management (CRUD), full menu creation per restaurant, item availability and prep time tracking. | Spring Boot 4, Spring Data MongoDB, MongoDB |
-| **OrderService** | Order lifecycle management (CRUD), status tracking (Preparing → Ready → Served → Delivered/Cancelled), order items, waiter calls, tips, add items to existing orders. | Spring Boot 4, Spring Data JDBC, PostgreSQL |
-| **ReservationService** | Reservation scheduling, party size management, status tracking (Pendiente → Confirmada → CheckedIn → Completada/Cancelada/NoShow), order linking, suggested available times, 10-min auto-release for no-shows, check-in. | Spring Boot 4, Spring Data JDBC, PostgreSQL |
+| **OrderService** | Order lifecycle management (CRUD), status tracking (Preparing → Ready → Served → Delivered/Cancelled), order items, waiter calls, tips, add items to existing orders. Publishes async events to RabbitMQ on order creation and status changes. | Spring Boot 4, Spring Data JDBC, PostgreSQL, Spring AMQP |
+| **ReservationService** | Reservation scheduling, party size management, status tracking (Pendiente → Confirmada → CheckedIn → Completada/Cancelada/NoShow), order linking, suggested available times, 10-min auto-release for no-shows, check-in. Publishes async events to RabbitMQ on confirmation and cancellation. | Spring Boot 4, Spring Data JDBC, PostgreSQL, Spring AMQP |
 | **CheckoutService** | Saga Orchestrator — validates cart items, creates orders via OrderService, links reservations. Supports tips, delivery fees, and discounts. Stateless (no database). | Spring Boot 4, RestClient |
 | **RatingService** | Restaurant and waiter ratings, rating summaries with averages and counts per entity. | Spring Boot 4, Spring Data JDBC, PostgreSQL |
-| **NotificationService** | User notifications with type-based filtering (ORDER, RESERVATION, PROMOTION, SYSTEM), mark as read. | Spring Boot 4, Spring Data JDBC, PostgreSQL |
+| **NotificationService** | User notifications with type-based filtering (ORDER, RESERVATION, PROMOTION, SYSTEM), mark as read. Consumes async events from RabbitMQ (order and reservation queues) to auto-generate notifications. | Spring Boot 4, Spring Data JDBC, PostgreSQL, Spring AMQP |
+| **RabbitMQ** | Message broker for asynchronous inter-service communication. Hosts the `clickmunch.events` topic exchange with routing-key-based bindings to notification queues. | RabbitMQ 3 (Management) |
 | **Web Dashboard** | Admin panel for restaurant and product management. | React 19, TypeScript, Vite, TailwindCSS |
 | **Mobile App** | Customer-facing app for browsing restaurants, menus, and ordering. | React Native, Expo SDK 54, Zustand, React Query |
 
@@ -148,6 +180,9 @@ The architecture is built around independent microservices—authentication, res
 | CheckoutService | OrderService | HTTP/REST | Creates orders via `OrderClient`. |
 | CheckoutService | ReservationService | HTTP/REST | Validates and links reservations via `ReservationClient`. |
 | CheckoutService | MenuService | HTTP/REST | Validates menu items via `MenuClient`. |
+| OrderService | RabbitMQ | AMQP | Publishes `order.created` and `order.status.changed` events to the `clickmunch.events` topic exchange. |
+| ReservationService | RabbitMQ | AMQP | Publishes `reservation.confirmed` and `reservation.cancelled` events to the `clickmunch.events` topic exchange. |
+| RabbitMQ | NotificationService | AMQP | Routes events to `notification.order.queue` and `notification.reservation.queue`. NotificationService consumes them and creates user notifications. |
 
 ---
 
@@ -161,7 +196,7 @@ The architecture is built around independent microservices—authentication, res
 
 ### Backend
 
-The entire backend (10 microservices + 8 databases) runs in Docker containers.
+The entire backend (10 microservices + 8 databases + 1 message broker) runs in Docker containers.
 
 ```bash
 # 1. Clone the repository
@@ -176,10 +211,10 @@ docker compose up --build -d
 docker compose ps
 ```
 
-All 18 containers should show **"(healthy)"**. The API Gateway will be available at `http://localhost:8080`.
+All 19 containers should show **"(healthy)"**. The API Gateway will be available at `http://localhost:8080`.
 
 | Service | Port |
-|---------|------|
+|---------|----- |
 | API Gateway | 8080 |
 | AuthService | 8081 |
 | RestaurantService | 8082 |
@@ -190,6 +225,8 @@ All 18 containers should show **"(healthy)"**. The API Gateway will be available
 | NotificationService | 8087 |
 | RatingService | 8088 |
 | CheckoutService | 8089 |
+| RabbitMQ (AMQP) | 5672 |
+| RabbitMQ (Management UI) | 15672 |
 | auth_db (PostgreSQL) | 5433 |
 | restaurant_db (PostgreSQL) | 5434 |
 | geo_db (PostGIS) | 5435 |

@@ -146,6 +146,25 @@ services:
     networks:
       - appnet
 
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    restart: always
+    environment:
+      RABBITMQ_DEFAULT_USER: mike
+      RABBITMQ_DEFAULT_PASS: secret
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - appnet
+
   notification-db:
     image: postgres:16
     container_name: notification-db
@@ -278,8 +297,14 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://order-db:5432/order_db
       SPRING_DATASOURCE_USERNAME: mike
       SPRING_DATASOURCE_PASSWORD: secret
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: mike
+      SPRING_RABBITMQ_PASSWORD: secret
     depends_on:
       order-db:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     networks:
       - appnet
@@ -294,8 +319,14 @@ services:
       SPRING_DATASOURCE_USERNAME: mike
       SPRING_DATASOURCE_PASSWORD: secret
       RESTAURANT_SERVICE_URL: http://restaurantservice:8082
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: mike
+      SPRING_RABBITMQ_PASSWORD: secret
     depends_on:
       reservation-db:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     networks:
       - appnet
@@ -343,8 +374,14 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://notification-db:5432/notification_db
       SPRING_DATASOURCE_USERNAME: mike
       SPRING_DATASOURCE_PASSWORD: secret
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: mike
+      SPRING_RABBITMQ_PASSWORD: secret
     depends_on:
       notification-db:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     networks:
       - appnet

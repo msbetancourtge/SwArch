@@ -1,23 +1,31 @@
 package com.clickmunch.ReservationService.service;
 
-import com.clickmunch.ReservationService.client.RestaurantClient;
-import com.clickmunch.ReservationService.dto.*;
-import com.clickmunch.ReservationService.entity.Reservation;
-import com.clickmunch.ReservationService.entity.ReservationStatus;
-import com.clickmunch.ReservationService.repository.ReservationRepository;
-import lombok.RequiredArgsConstructor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.clickmunch.ReservationService.client.RestaurantClient;
+import com.clickmunch.ReservationService.dto.CreateReservationRequest;
+import com.clickmunch.ReservationService.dto.LinkOrderRequest;
+import com.clickmunch.ReservationService.dto.ReservationResponse;
+import com.clickmunch.ReservationService.dto.SuggestedTimesResponse;
+import com.clickmunch.ReservationService.dto.UpdateReservationStatusRequest;
+import com.clickmunch.ReservationService.entity.Reservation;
+import com.clickmunch.ReservationService.entity.ReservationStatus;
+import com.clickmunch.ReservationService.event.ReservationEvent;
+import com.clickmunch.ReservationService.event.ReservationEventPublisher;
+import com.clickmunch.ReservationService.repository.ReservationRepository;
+
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
@@ -27,6 +35,7 @@ public class ReservationService {
 
     private final ReservationRepository reservationRepository;
     private final RestaurantClient restaurantClient;
+    private final ReservationEventPublisher eventPublisher;
 
     @Transactional
     public ReservationResponse createReservation(CreateReservationRequest request) {
@@ -100,6 +109,20 @@ public class ReservationService {
         reservation.setStatus(newStatus);
 
         Reservation updated = reservationRepository.save(reservation);
+
+        // Publish async event for notifications
+        if (newStatus == ReservationStatus.Confirmada) {
+            eventPublisher.publishReservationConfirmed(ReservationEvent.confirmed(
+                    updated.getId(), updated.getCustomerId(), updated.getCustomerName(),
+                    updated.getRestaurantId(), updated.getRestaurantName(),
+                    updated.getReservationDate(), updated.getReservationTime(), updated.getPartySize()));
+        } else if (newStatus == ReservationStatus.Cancelada) {
+            eventPublisher.publishReservationCancelled(ReservationEvent.cancelled(
+                    updated.getId(), updated.getCustomerId(), updated.getCustomerName(),
+                    updated.getRestaurantId(), updated.getRestaurantName(),
+                    updated.getReservationDate(), updated.getReservationTime(), updated.getPartySize()));
+        }
+
         return toResponse(updated);
     }
 
