@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { productService } from '@/lib/services/productService';
 import { PRODUCT_CATEGORIES, type Product, type ProductStatus, type CreateProductDTO } from '@/lib/types';
+import { useAuth } from '@/contexts/AuthContext';
 
 const statusColors: Record<ProductStatus, string> = {
   Borrador: 'bg-gray-100 text-gray-800',
@@ -17,6 +18,7 @@ const statusColors: Record<ProductStatus, string> = {
 };
 
 export const AdminProductsPage = () => {
+  const { restaurantId } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -37,12 +39,16 @@ export const AdminProductsPage = () => {
 
   useEffect(() => {
     loadProducts();
-  }, []);
+  }, [restaurantId]);
 
   const loadProducts = async () => {
+    if (!restaurantId) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
-      const data = await productService.getAll();
+      const data = await productService.getAll(restaurantId);
       setProducts(data);
     } catch (error) {
       console.error('Error loading products:', error);
@@ -78,10 +84,12 @@ export const AdminProductsPage = () => {
     e.preventDefault();
     
     try {
+      console.log('restaurantId', restaurantId)
       if (editingProduct) {
         await productService.update({ id: editingProduct.id, ...formData });
-      } else {
-        await productService.create(formData);
+      } else if (restaurantId) {
+        
+        await productService.create(formData, restaurantId);
       }
       await loadProducts();
       setIsDialogOpen(false);
