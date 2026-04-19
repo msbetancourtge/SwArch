@@ -1,5 +1,5 @@
 // AuthContext.tsx - Context para manejar el estado de autenticación global
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import * as auth from '@/lib/auth';
 
 interface User {

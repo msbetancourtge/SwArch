@@ -1,4 +1,4 @@
-﻿import type { Order, OrderItem, CreateOrderDTO, UpdateOrderDTO, OrderStatus } from '@/lib/types';
+﻿import type { Order, CreateOrderDTO, UpdateOrderDTO, OrderStatus } from '@/lib/types';
 
 // TODO: Conectar con el backend - OrderService (puerto 8083)
 // URL base: http://localhost:8083/api/orders
@@ -64,7 +64,7 @@ export const orderService = {
     const total = items.reduce((sum, item) => sum + item.subtotal, 0);
     
     const newOrder: Order = {
-      id: "ORD-${orderNumber}",
+      id: `ORD-${orderNumber}`,
       customerId: data.customerId,
       customer: 'Cliente ' + data.customerId,
       restaurantId: data.restaurantId,
