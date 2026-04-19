@@ -28,7 +28,10 @@ class OrderControllerTest {
     private OrderResponse sampleOrder() {
         return new OrderResponse(1L, 10L, 5, "PENDING", "No onions",
                 LocalDateTime.now(), LocalDateTime.now(),
-                List.of(new OrderItemResponse(1L, "Burger", 2, "Well done")));
+                List.of(
+                        new OrderItemResponse(1L, "Burger", "sin lechuga"),
+                        new OrderItemResponse(2L, "Burger", "con todo")
+                ));
     }
 
     @Test
@@ -43,12 +46,16 @@ class OrderControllerTest {
                                   "restaurantId": 10,
                                   "tableNumber": 5,
                                   "notes": "No onions",
-                                  "items": [{"itemName": "Burger", "quantity": 2, "notes": "Well done"}]
+                                  "items": [
+                                    {"itemName": "Burger", "notes": "sin lechuga"},
+                                    {"itemName": "Burger", "notes": "con todo"}
+                                  ]
                                 }
                                 """))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.message").value("Order created successfully"))
-                .andExpect(jsonPath("$.data.tableNumber").value(5));
+                .andExpect(jsonPath("$.data.tableNumber").value(5))
+                .andExpect(jsonPath("$.data.items", org.hamcrest.Matchers.hasSize(2)));
     }
 
     @Test
@@ -109,7 +116,7 @@ class OrderControllerTest {
     void updateStatus_returns200() throws Exception {
         OrderResponse updated = new OrderResponse(1L, 10L, 5, "IN_PREPARATION", null,
                 LocalDateTime.now(), LocalDateTime.now(),
-                List.of(new OrderItemResponse(1L, "Burger", 2, null)));
+                List.of(new OrderItemResponse(1L, "Burger", null)));
         Mockito.when(orderService.updateStatus(Mockito.eq(1L), Mockito.any(UpdateStatusRequest.class)))
                 .thenReturn(new ApiResponse<>("Order status updated to IN_PREPARATION", updated));
 

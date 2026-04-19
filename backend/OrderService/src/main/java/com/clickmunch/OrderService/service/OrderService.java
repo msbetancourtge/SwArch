@@ -4,6 +4,7 @@ import com.clickmunch.OrderService.dto.*;
 import com.clickmunch.OrderService.entity.Order;
 import com.clickmunch.OrderService.entity.OrderItem;
 import com.clickmunch.OrderService.entity.OrderStatus;
+import com.clickmunch.OrderService.realtime.KitchenEventsPublisher;
 import com.clickmunch.OrderService.repository.OrderItemRepository;
 import com.clickmunch.OrderService.repository.OrderRepository;
 import org.springframework.stereotype.Service;
@@ -27,10 +28,14 @@ public class OrderService {
 
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
+    private final KitchenEventsPublisher events;
 
-    public OrderService(OrderRepository orderRepository, OrderItemRepository orderItemRepository) {
+    public OrderService(OrderRepository orderRepository,
+                        OrderItemRepository orderItemRepository,
+                        KitchenEventsPublisher events) {
         this.orderRepository = orderRepository;
         this.orderItemRepository = orderItemRepository;
+        this.events = events;
     }
 
     public ApiResponse<OrderResponse> createOrder(CreateOrderRequest request) {
@@ -48,14 +53,15 @@ public class OrderService {
             OrderItem item = new OrderItem();
             item.setOrderId(saved.getId());
             item.setItemName(itemReq.itemName());
-            item.setQuantity(itemReq.quantity() != null ? itemReq.quantity() : 1);
             item.setNotes(itemReq.notes());
             return item;
         }).toList();
 
         List<OrderItem> savedItems = orderItemRepository.saveAll(items);
 
-        return new ApiResponse<>("Order created successfully", toResponse(saved, savedItems));
+        OrderResponse response = toResponse(saved, savedItems);
+        events.publishCreated(response);
+        return new ApiResponse<>("Order created successfully", response);
     }
 
     public ApiResponse<OrderResponse> getOrder(Long id) {
@@ -103,7 +109,9 @@ public class OrderService {
         Order updated = orderRepository.save(order);
 
         List<OrderItem> items = orderItemRepository.findByOrderId(id);
-        return new ApiResponse<>("Order status updated to " + newStatus, toResponse(updated, items));
+        OrderResponse response = toResponse(updated, items);
+        events.publishStatusChanged(response);
+        return new ApiResponse<>("Order status updated to " + newStatus, response);
     }
 
     private List<OrderResponse> toResponseList(List<Order> orders) {
@@ -121,7 +129,7 @@ public class OrderService {
 
     private OrderResponse toResponse(Order order, List<OrderItem> items) {
         List<OrderItemResponse> itemResponses = items.stream()
-                .map(i -> new OrderItemResponse(i.getId(), i.getItemName(), i.getQuantity(), i.getNotes()))
+                .map(i -> new OrderItemResponse(i.getId(), i.getItemName(), i.getNotes()))
                 .toList();
 
         return new OrderResponse(

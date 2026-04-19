@@ -101,10 +101,12 @@ export type ProductCategory = typeof PRODUCT_CATEGORIES[number];
 // Tipos para Kitchen / Chef portal (conectados al OrderService real)
 export type KitchenOrderStatus = 'PENDING' | 'IN_PREPARATION' | 'READY' | 'DELIVERED' | 'CANCELLED';
 
+// Each KitchenOrderItem represents ONE ordered unit. Two burgers with
+// different instructions come as two entries. The UI groups visually by
+// (itemName, notes) when rendering the kitchen card.
 export interface KitchenOrderItem {
   id: number;
   itemName: string;
-  quantity: number;
   notes: string | null;
 }
 

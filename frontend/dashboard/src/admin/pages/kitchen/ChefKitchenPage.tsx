@@ -1,11 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ChefHat, Clock, RefreshCw, AlertCircle, UtensilsCrossed } from 'lucide-react';
+import { ChefHat, Clock, RefreshCw, AlertCircle, UtensilsCrossed, Radio, RadioTower } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { kitchenOrderService } from '@/lib/services/kitchenOrderService';
+import { subscribeKitchen, type KitchenEvent } from '@/lib/services/kitchenRealtime';
 import type { KitchenOrder, KitchenOrderStatus } from '@/lib/types';
 
-const POLL_INTERVAL_MS = 10_000;
+// Safety-net polling: the realtime channel is the primary mechanism, but this
+// keeps the UI correct on reconnects, transient network errors, or missed
+// frames. Short enough to recover quickly, long enough to not hit the backend.
+const SAFETY_POLL_INTERVAL_MS = 60_000;
 const RESTAURANT_ID = 1;
 
 const STATUS_CONFIG: Record<KitchenOrderStatus, {
@@ -39,12 +43,45 @@ function timeAgo(isoDate: string): string {
   return `hace ${hrs}h ${mins % 60}m`;
 }
 
+// Agrupa unidades consecutivas con el mismo (itemName, notes) para mostrarlas
+// como "2x Hamburguesa" manteniendo la capacidad de tener notas distintas
+// ("1x Hamburguesa sin lechuga", "1x Hamburguesa con todo") en la misma orden.
+interface GroupedItem {
+  key: string;
+  itemName: string;
+  notes: string | null;
+  count: number;
+}
+
+function groupItems(items: { id: number; itemName: string; notes: string | null }[]): GroupedItem[] {
+  const groups: GroupedItem[] = [];
+  for (const it of items) {
+    const last = groups[groups.length - 1];
+    if (last && last.itemName === it.itemName && (last.notes ?? '') === (it.notes ?? '')) {
+      last.count += 1;
+    } else {
+      groups.push({
+        key: `${it.itemName}|${it.notes ?? ''}|${it.id}`,
+        itemName: it.itemName,
+        notes: it.notes,
+        count: 1,
+      });
+    }
+  }
+  return groups;
+}
+
+// Active statuses shown on the kitchen board. DELIVERED and CANCELLED are
+// filtered out (they represent completed or aborted orders).
+const ACTIVE_STATUSES: KitchenOrderStatus[] = ['PENDING', 'IN_PREPARATION', 'READY'];
+
 export const ChefKitchenPage = () => {
   const [orders, setOrders] = useState<KitchenOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const [updatingIds, setUpdatingIds] = useState<Set<number>>(new Set());
+  const [liveConnected, setLiveConnected] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const loadOrders = useCallback(async (showLoading = false) => {
@@ -62,13 +99,45 @@ export const ChefKitchenPage = () => {
     }
   }, []);
 
+  // Merge a realtime event into the local order list. For CREATED we append,
+  // for STATUS_CHANGED we update in place (and remove if the new status leaves
+  // the active board, e.g. DELIVERED/CANCELLED).
+  const applyEvent = useCallback((event: KitchenEvent) => {
+    setOrders(prev => {
+      const incoming = event.order;
+      const isActive = ACTIVE_STATUSES.includes(incoming.status);
+      const exists = prev.some(o => o.id === incoming.id);
+
+      if (event.type === 'ORDER_CREATED') {
+        if (exists) return prev;
+        return isActive ? [...prev, incoming].sort((a, b) => a.createdAt.localeCompare(b.createdAt)) : prev;
+      }
+      // ORDER_STATUS_CHANGED
+      if (!exists) {
+        return isActive ? [...prev, incoming].sort((a, b) => a.createdAt.localeCompare(b.createdAt)) : prev;
+      }
+      return isActive
+        ? prev.map(o => (o.id === incoming.id ? incoming : o))
+        : prev.filter(o => o.id !== incoming.id);
+    });
+    setLastRefresh(new Date());
+  }, []);
+
   useEffect(() => {
     loadOrders(true);
-    intervalRef.current = setInterval(() => loadOrders(false), POLL_INTERVAL_MS);
+
+    const handle = subscribeKitchen(
+      RESTAURANT_ID,
+      applyEvent,
+      setLiveConnected,
+    );
+    intervalRef.current = setInterval(() => loadOrders(false), SAFETY_POLL_INTERVAL_MS);
+
     return () => {
+      handle.disconnect();
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [loadOrders]);
+  }, [loadOrders, applyEvent]);
 
   const handleStatusChange = async (orderId: number, newStatus: KitchenOrderStatus) => {
     setUpdatingIds(prev => new Set(prev).add(orderId));
@@ -108,6 +177,13 @@ export const ChefKitchenPage = () => {
             <span className="px-2 py-1 rounded-full bg-amber-100 text-amber-800 font-medium">{pendingCount} pendientes</span>
             <span className="px-2 py-1 rounded-full bg-blue-100 text-blue-800 font-medium">{prepCount} en prep.</span>
             <span className="px-2 py-1 rounded-full bg-emerald-100 text-emerald-800 font-medium">{readyCount} listos</span>
+          </div>
+          <div
+            className={`flex items-center gap-1.5 text-xs font-medium ${liveConnected ? 'text-emerald-600' : 'text-gray-400'}`}
+            title={liveConnected ? 'Canal en vivo conectado' : 'Canal en vivo desconectado (usando polling)'}
+          >
+            {liveConnected ? <RadioTower className="w-3.5 h-3.5" /> : <Radio className="w-3.5 h-3.5" />}
+            <span>{liveConnected ? 'En vivo' : 'Offline'}</span>
           </div>
           <div className="flex items-center gap-2 text-xs text-gray-400">
             <Clock className="w-3 h-3" />
@@ -172,18 +248,18 @@ export const ChefKitchenPage = () => {
                   <Badge variant={config.badgeVariant}>{config.label}</Badge>
                 </div>
 
-                {/* Items list */}
+                {/* Items list (grouped by itemName+notes) */}
                 <div className="px-4 py-2">
                   <ul className="space-y-1.5">
-                    {order.items.map(item => (
-                      <li key={item.id}>
+                    {groupItems(order.items).map(group => (
+                      <li key={group.key}>
                         <div className="flex justify-between items-start">
                           <span className="text-sm font-medium text-gray-800">
-                            {item.quantity}x {item.itemName}
+                            {group.count}x {group.itemName}
                           </span>
                         </div>
-                        {item.notes && (
-                          <p className="text-xs text-gray-500 ml-5 italic">→ {item.notes}</p>
+                        {group.notes && (
+                          <p className="text-xs text-gray-500 ml-5 italic">→ {group.notes}</p>
                         )}
                       </li>
                     ))}
