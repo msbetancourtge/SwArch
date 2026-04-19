@@ -35,6 +35,9 @@ dependencies {
 	runtimeOnly 'org.postgresql:postgresql'
 	annotationProcessor 'org.projectlombok:lombok'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	// Spring Boot 4.0 split @WebMvcTest / @AutoConfigureMockMvc into a
+	// dedicated starter; the core starter-test no longer ships them.
+	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 	testImplementation 'org.mockito:mockito-core:4.2.0'
 	testImplementation 'org.mockito:mockito-junit-jupiter:4.2.0'
