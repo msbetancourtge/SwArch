@@ -53,27 +53,32 @@ public class RouteConfig {
     public RouterFunction<ServerResponse> routes(JwtTokenUtil jwtTokenUtil) {
         JwtAuthenticationFilter jwtAuthenticationFilter = new JwtAuthenticationFilter(jwtTokenUtil);
 
+        // Rewrite pattern "^/<prefix>(/.*)?$" covers both the bare prefix
+        // (POST /order  -> /api/orders) and any subpath
+        // (GET /order/restaurant/1 -> /api/orders/restaurant/1). The previous
+        // pattern required a mandatory "/" after the prefix, which broke root
+        // POSTs through the gateway.
         RouterFunction<ServerResponse> auth = route("auth")
                 .route(path("/auth/**"), http())
                 .before(uri(authServiceUrl))
-                .before(rewritePath("/auth/(?<segment>.*)", "/api/auth/${segment}"))
+                .before(rewritePath("^/auth(/.*)?$", "/api/auth$1"))
                 .build();
         RouterFunction<ServerResponse> restaurant = route("restaurant")
                 .route(path("/restaurant/**"), http())
                 .before(uri(restaurantServiceUrl))
-                .before(rewritePath("/restaurant/(?<segment>.*)", "/api/restaurants/${segment}"))
+                .before(rewritePath("^/restaurant(/.*)?$", "/api/restaurants$1"))
                 .filter(jwtAuthenticationFilter)
                 .build();
         RouterFunction<ServerResponse> menu = route("menu")
                 .route(path("/menu/**"), http())
                 .before(uri(menuServiceUrl))
-                .before(rewritePath("/menu/(?<segment>.*)", "/api/menus/${segment}"))
+                .before(rewritePath("^/menu(/.*)?$", "/api/menus$1"))
                 .filter(jwtAuthenticationFilter)
                 .build();
         RouterFunction<ServerResponse> order = route("order")
                 .route(path("/order/**"), http())
                 .before(uri(orderServiceUrl))
-                .before(rewritePath("/order/(?<segment>.*)", "/api/orders/${segment}"))
+                .before(rewritePath("^/order(/.*)?$", "/api/orders$1"))
                 .filter(jwtAuthenticationFilter)
                 .build();
         return auth.and(restaurant).and(menu).and(order);
