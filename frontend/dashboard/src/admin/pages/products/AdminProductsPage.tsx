@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState } from 'react';
-import { Plus, Edit, Trash2 } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { Table, TableCaption, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,12 +9,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { productService } from '@/lib/services/productService';
 import { PRODUCT_CATEGORIES, type Product, type ProductStatus, type CreateProductDTO } from '@/lib/types';
-
-const statusColors: Record<ProductStatus, string> = {
-  Borrador: 'bg-gray-100 text-gray-800',
-  Pendiente: 'bg-amber-100 text-amber-800',
-  Publicado: 'bg-green-100 text-green-800',
-};
 
 export const AdminProductsPage = () => {
   const [products, setProducts] = useState<Product[]>([]);
