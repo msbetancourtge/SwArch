@@ -11,6 +11,7 @@ import { AdminHelpPage } from './admin/pages/help/AdminHelpPage'
 import { AdminReservationsPage } from './admin/pages/reservations/AdminReservationsPage'
 import { AdminRestaurantsPage } from './admin/pages/restaurants/AdminRestaurantsPage'
 import { AdminRatingsPage } from './admin/pages/ratings/AdminRatingsPage'
+import { ChefKitchenPage } from './admin/pages/kitchen/ChefKitchenPage'
 import { RegisterPage } from './auth/pages/register/RegisterPage'
 import { lazy } from 'react'
 import { LoginPage } from './auth/pages/login/LoginPage'
@@ -43,6 +44,10 @@ export const appRouter = createBrowserRouter([
             {
                 path: 'orders',
                 element: <AdminOrdersPage/>
+            },
+            {
+                path: 'kitchen',
+                element: <ChefKitchenPage/>
             },
             {
                 path: 'reservations',

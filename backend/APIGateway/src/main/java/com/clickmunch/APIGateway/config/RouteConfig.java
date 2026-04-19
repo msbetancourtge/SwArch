@@ -17,6 +17,23 @@ import com.clickmunch.APIGateway.security.JwtAuthenticationFilter;
 import com.clickmunch.APIGateway.security.JwtTokenUtil;
 
 
+/**
+ * API Gateway routing.
+ *
+ * All REST traffic is unified under this gateway (port 8080) with JWT
+ * enforcement for protected services.
+ *
+ * WebSocket traffic (OrderService kitchen events) is NOT routed here.
+ * Spring Cloud Gateway Server MVC (servlet) does not transparently proxy
+ * the HTTP Upgrade handshake; only the reactive flavor does. Migrating this
+ * gateway to reactive is out of scope for the order-service feature, so the
+ * realtime channel follows the common "REST gateway + separate realtime
+ * channel" pattern used in production (AWS API Gateway + AppSync, nginx with
+ * split paths, etc.). Clients connect directly to:
+ *     ws://localhost:8085/ws/kitchen
+ * If a single edge is required later, add an nginx/traefik sidecar in front
+ * that terminates both HTTP and WebSocket on one port.
+ */
 @Configuration
 public class RouteConfig {
 

@@ -11,6 +11,5 @@ public class OrderItem {
     private Long id;
     private Long orderId;
     private String itemName;
-    private Integer quantity;
     private String notes;
 }

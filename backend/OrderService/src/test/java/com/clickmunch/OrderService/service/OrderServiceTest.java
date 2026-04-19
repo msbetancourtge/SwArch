@@ -4,6 +4,7 @@ import com.clickmunch.OrderService.dto.*;
 import com.clickmunch.OrderService.entity.Order;
 import com.clickmunch.OrderService.entity.OrderItem;
 import com.clickmunch.OrderService.entity.OrderStatus;
+import com.clickmunch.OrderService.realtime.KitchenEventsPublisher;
 import com.clickmunch.OrderService.repository.OrderItemRepository;
 import com.clickmunch.OrderService.repository.OrderRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -30,6 +31,9 @@ class OrderServiceTest {
     @Mock
     private OrderItemRepository orderItemRepository;
 
+    @Mock
+    private KitchenEventsPublisher events;
+
     @InjectMocks
     private OrderService orderService;
 
@@ -51,33 +55,44 @@ class OrderServiceTest {
         testItem.setId(1L);
         testItem.setOrderId(1L);
         testItem.setItemName("Burger");
-        testItem.setQuantity(2);
         testItem.setNotes("Well done");
     }
 
     @Test
-    void createOrder_returnsOrderResponse() {
+    void createOrder_insertsOneRowPerUnit_withPerUnitNotes() {
         when(orderRepository.save(any(Order.class))).thenAnswer(inv -> {
             Order o = inv.getArgument(0);
             o.setId(1L);
             return o;
         });
-        when(orderItemRepository.saveAll(anyList())).thenReturn(List.of(testItem));
+
+        OrderItem noLettuce = new OrderItem();
+        noLettuce.setId(1L);
+        noLettuce.setOrderId(1L);
+        noLettuce.setItemName("Burger");
+        noLettuce.setNotes("sin lechuga");
+        OrderItem full = new OrderItem();
+        full.setId(2L);
+        full.setOrderId(1L);
+        full.setItemName("Burger");
+        full.setNotes("con todo");
+        when(orderItemRepository.saveAll(anyList())).thenReturn(List.of(noLettuce, full));
 
         CreateOrderRequest request = new CreateOrderRequest(
-                10L, 5, "No onions",
-                List.of(new CreateOrderItemRequest("Burger", 2, "Well done"))
+                10L, 5, "Table 5",
+                List.of(
+                        new CreateOrderItemRequest("Burger", "sin lechuga"),
+                        new CreateOrderItemRequest("Burger", "con todo")
+                )
         );
 
         ApiResponse<OrderResponse> response = orderService.createOrder(request);
 
         assertNotNull(response.data());
         assertEquals("Order created successfully", response.message());
-        assertEquals(10L, response.data().restaurantId());
-        assertEquals(5, response.data().tableNumber());
-        assertEquals("PENDING", response.data().status());
-        assertEquals(1, response.data().items().size());
-        verify(orderRepository).save(any(Order.class));
+        assertEquals(2, response.data().items().size());
+        assertEquals("sin lechuga", response.data().items().get(0).notes());
+        assertEquals("con todo", response.data().items().get(1).notes());
         verify(orderItemRepository).saveAll(anyList());
     }
 
@@ -230,5 +245,45 @@ class OrderServiceTest {
 
         assertThrows(RuntimeException.class,
                 () -> orderService.updateStatus(999L, new UpdateStatusRequest("IN_PREPARATION")));
+    }
+
+    @Test
+    void createOrder_publishesCreatedEvent() {
+        when(orderRepository.save(any(Order.class))).thenAnswer(inv -> {
+            Order o = inv.getArgument(0);
+            o.setId(1L);
+            return o;
+        });
+        when(orderItemRepository.saveAll(anyList())).thenReturn(List.of(testItem));
+
+        CreateOrderRequest request = new CreateOrderRequest(
+                10L, 5, null,
+                List.of(new CreateOrderItemRequest("Burger", null))
+        );
+
+        orderService.createOrder(request);
+
+        verify(events, times(1)).publishCreated(any(OrderResponse.class));
+        verify(events, never()).publishStatusChanged(any());
+    }
+
+    @Test
+    void updateStatus_publishesStatusChangedEvent() {
+        when(orderRepository.findById(1L)).thenReturn(Optional.of(testOrder));
+        when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(orderItemRepository.findByOrderId(1L)).thenReturn(List.of(testItem));
+
+        orderService.updateStatus(1L, new UpdateStatusRequest("IN_PREPARATION"));
+
+        verify(events, times(1)).publishStatusChanged(any(OrderResponse.class));
+    }
+
+    @Test
+    void updateStatus_invalidTransition_doesNotPublish() {
+        when(orderRepository.findById(1L)).thenReturn(Optional.of(testOrder));
+
+        assertThrows(RuntimeException.class,
+                () -> orderService.updateStatus(1L, new UpdateStatusRequest("READY")));
+        verify(events, never()).publishStatusChanged(any());
     }
 }

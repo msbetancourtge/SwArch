@@ -8,10 +8,12 @@ CREATE TABLE IF NOT EXISTS orders (
     updated_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+-- One row per ordered unit so per-unit notes (e.g. "sin lechuga") can differ
+-- between two units of the same item. The frontend groups visually by
+-- (item_name, notes) when showing the kitchen view.
 CREATE TABLE IF NOT EXISTS order_items (
     id         SERIAL PRIMARY KEY,
     order_id   BIGINT       NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
     item_name  VARCHAR(200) NOT NULL,
-    quantity   INT          NOT NULL DEFAULT 1,
     notes      TEXT
 );
