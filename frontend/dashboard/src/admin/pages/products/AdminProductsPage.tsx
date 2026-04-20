@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState } from 'react';
-import { Plus, Edit, Trash2 } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { Table, TableCaption, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,12 +10,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { productService } from '@/lib/services/productService';
 import { PRODUCT_CATEGORIES, type Product, type ProductStatus, type CreateProductDTO } from '@/lib/types';
 import { useAuth } from '@/contexts/AuthContext';
-
-const statusColors: Record<ProductStatus, string> = {
-  Borrador: 'bg-gray-100 text-gray-800',
-  Pendiente: 'bg-amber-100 text-amber-800',
-  Publicado: 'bg-green-100 text-green-800',
-};
 
 export const AdminProductsPage = () => {
   const { restaurantId } = useAuth();

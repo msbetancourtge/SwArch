@@ -1,12 +1,20 @@
-import { productsApi } from '@/core/api/productsApi';
-import type { CreateOrderRequest, Order } from '../interface/order';
+import { gatewayApi } from '@/core/api/gatewayApi';
+import type { CreateOrderInput, Order } from '../interface/order';
 
-export const createOrder = async (order: CreateOrderRequest): Promise<Order | null> => {
-  try {
-    const { data } = await productsApi.post<Order>('/order', order);
-    return data;
-  } catch (error) {
-    console.log('Error creating order:', error);
-    return null;
-  }
+interface ApiEnvelope<T> {
+    message: string;
+    data: T;
+}
+
+export const createOrder = async (input: CreateOrderInput): Promise<Order> => {
+    const { data } = await gatewayApi.post<ApiEnvelope<Order>>('/order', {
+        restaurantId: input.restaurantId,
+        tableNumber: input.tableNumber,
+        notes: input.notes ?? null,
+        items: input.items.map((item) => ({
+            itemName: item.itemName,
+            notes: item.notes ?? null,
+        })),
+    });
+    return data.data;
 };
