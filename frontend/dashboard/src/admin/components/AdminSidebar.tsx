@@ -10,7 +10,9 @@ import {
   HelpCircle,
   ChevronLeft,
   ChevronRight,
-  LogOut
+  LogOut,
+  Table,
+  Calendar
 } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { getCurrentUserRole } from '@/lib/auth';
@@ -41,6 +43,8 @@ export const AdminSidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) 
     { icon: Bell, label: 'Notificaciones', to: '/notifications', roles: ['ADMIN', 'RESTAURANT_MANAGER'] },
     { icon: Settings, label: 'Ajustes', to: '/settings', roles: ['ADMIN'] },
     { icon: HelpCircle, label: 'Ayuda', to: '/help', roles: ['ADMIN'] },
+    { icon: Table, label: 'Mesas', to: '/tables', roles: ['RESTAURANT_MANAGER'] },
+    { icon: Calendar, label: 'Horarios', to: '/hours', roles: ['RESTAURANT_MANAGER'] },
   ];
 
   // Filtrar items del menú según el rol del usuario

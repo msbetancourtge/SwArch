@@ -211,7 +211,7 @@ export async function getOwnerRestaurantId(): Promise<number | null> {
 
   const apiBase = import.meta.env.VITE_API_URL ?? 'http://localhost:8080';
   try {
-    const res = await fetch(`${apiBase}/restaurant/owner/${userId}`, {
+    const res = await fetch(`${apiBase}/restaurant/admin/${userId}`, {
       headers: { Authorization: `Bearer ${session.token}` },
     });
     if (!res.ok) return null;

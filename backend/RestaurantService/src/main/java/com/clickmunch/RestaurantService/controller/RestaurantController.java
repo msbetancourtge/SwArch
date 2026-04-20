@@ -204,4 +204,5 @@ public class RestaurantController {
         restaurantService.removeStaff(assignmentId);
         return ResponseEntity.noContent().build();
     }
+    
 }
