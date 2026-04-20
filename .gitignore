@@ -64,3 +64,6 @@ bin/
 
 # VS Code
 .vscode/
+
+# GitHub metadata and Copilot project instructions
+.github/

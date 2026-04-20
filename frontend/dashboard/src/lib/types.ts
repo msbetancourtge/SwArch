@@ -80,6 +80,8 @@ export interface Restaurant {
   category?: string;
   city?: string;
   status?: 'Activo' | 'Inactivo';
+  latitude: number;
+  longitude: number;
 }
 
 // Categorías de productos
