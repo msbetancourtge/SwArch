@@ -1,47 +1,46 @@
 export type OrderStatus =
-  | 'Preparing'
-  | 'Ready'
-  | 'Served'
-  | 'Delivered'
-  | 'Cancelled';
+    | 'PENDING'
+    | 'IN_PREPARATION'
+    | 'READY'
+    | 'DELIVERED'
+    | 'CANCELLED';
 
-export type OrderChannel = 'Reservation' | 'In-person';
-
+// One ordered unit. Two burgers with different instructions come as two
+// entries with different `notes`. The waiter UI groups visually by
+// (itemName, notes) when rendering existing orders.
 export interface OrderItem {
-  id?: number;
-  orderId?: number;
-  menuItemId: string;
-  productName: string;
-  quantity: number;
-  unitPrice: number;
-  subtotal: number;
+    id: number;
+    itemName: string;
+    notes: string | null;
 }
 
 export interface Order {
-  id: number;
-  customerId: number;
-  restaurantId: number;
-  status: OrderStatus;
-  channel: OrderChannel;
-  notes?: string;
-  eta?: string;
-  total: number;
-  items: OrderItem[];
-  createdAt?: string;
-  updatedAt?: string;
+    id: number;
+    restaurantId: number;
+    tableNumber: number;
+    status: OrderStatus;
+    notes: string | null;
+    createdAt: string;
+    updatedAt: string;
+    items: OrderItem[];
 }
 
-export interface CreateOrderRequest {
-  customerId: number;
-  restaurantId: number;
-  channel: OrderChannel;
-  notes?: string;
-  items: {
-    menuItemId: string;
-    productName: string;
-    quantity: number;
-    unitPrice: number;
-    subtotal: number;
-  }[];
-  total: number;
+export interface CreateOrderItemInput {
+    itemName: string;
+    notes?: string | null;
+}
+
+export interface CreateOrderInput {
+    restaurantId: number;
+    tableNumber: number;
+    notes?: string | null;
+    items: CreateOrderItemInput[];
+}
+
+export type KitchenEventType = 'ORDER_CREATED' | 'ORDER_STATUS_CHANGED';
+
+export interface KitchenEvent {
+    type: KitchenEventType;
+    order: Order;
+    timestamp: string;
 }

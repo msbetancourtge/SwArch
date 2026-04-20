@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState } from 'react';
-import { Plus, Edit, Trash2 } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { Table, TableCaption, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,14 +9,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { productService } from '@/lib/services/productService';
 import { PRODUCT_CATEGORIES, type Product, type ProductStatus, type CreateProductDTO } from '@/lib/types';
-
-const statusColors: Record<ProductStatus, string> = {
-  Borrador: 'bg-gray-100 text-gray-800',
-  Pendiente: 'bg-amber-100 text-amber-800',
-  Publicado: 'bg-green-100 text-green-800',
-};
+import { useAuth } from '@/contexts/AuthContext';
 
 export const AdminProductsPage = () => {
+  const { restaurantId } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -37,12 +33,16 @@ export const AdminProductsPage = () => {
 
   useEffect(() => {
     loadProducts();
-  }, []);
+  }, [restaurantId]);
 
   const loadProducts = async () => {
+    if (!restaurantId) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
-      const data = await productService.getAll();
+      const data = await productService.getAll(restaurantId);
       setProducts(data);
     } catch (error) {
       console.error('Error loading products:', error);
@@ -78,10 +78,12 @@ export const AdminProductsPage = () => {
     e.preventDefault();
     
     try {
+      console.log('restaurantId', restaurantId)
       if (editingProduct) {
         await productService.update({ id: editingProduct.id, ...formData });
-      } else {
-        await productService.create(formData);
+      } else if (restaurantId) {
+        
+        await productService.create(formData, restaurantId);
       }
       await loadProducts();
       setIsDialogOpen(false);

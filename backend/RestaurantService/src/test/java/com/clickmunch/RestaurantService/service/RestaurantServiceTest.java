@@ -5,7 +5,6 @@ import com.clickmunch.RestaurantService.client.GeoClient;
 import com.clickmunch.RestaurantService.client.MenuClient;
 import com.clickmunch.RestaurantService.dto.*;
 import com.clickmunch.RestaurantService.entity.Restaurant;
-import com.clickmunch.RestaurantService.repository.RestaurantProfileRepository;
 import com.clickmunch.RestaurantService.repository.RestaurantRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -27,8 +26,6 @@ class RestaurantServiceTest {
 
     @Mock
     private RestaurantRepository restaurantRepository;
-    @Mock
-    private RestaurantProfileRepository restaurantProfileRepository;
 
     @Mock
     private GeoClient geoClient;
@@ -58,7 +55,7 @@ class RestaurantServiceTest {
 
         createRequest = new CreateRestaurantRequest(
                 2L, "Test Restaurant", "Test Description",
-                "123-456-7890", "test@restaurant.com", "https://example.com/image.jpg", 40.7128, -74.0060
+                "123-456-7890", "test@restaurant.com", null, 40.7128, -74.0060
         );
     }
 

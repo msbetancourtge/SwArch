@@ -1,32 +1,15 @@
 package com.clickmunch.OrderService.dto;
 
-import java.math.BigDecimal;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
+
 import java.util.List;
 
-import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
-import jakarta.validation.constraints.Size;
-
 public record CreateOrderRequest(
-        @NotNull Long customerId,
-        @NotBlank String customerName,
         @NotNull Long restaurantId,
-        @NotBlank String restaurantName,
-        @NotBlank String channel,
+        @NotNull Integer tableNumber,
         String notes,
-        String eta,
-        Long reservationId,
-        Long tableId,
-        Long waiterId,
-        Integer preparationMinutes,
-        @NotNull @Size(min = 1) List<@Valid OrderItemRequest> items
+        @NotEmpty @Valid List<CreateOrderItemRequest> items
 ) {
-    public record OrderItemRequest(
-            @NotBlank String menuItemId,
-            @NotBlank String productName,
-            @NotNull @Positive Integer quantity,
-            @NotNull @Positive BigDecimal unitPrice
-    ) {}
 }

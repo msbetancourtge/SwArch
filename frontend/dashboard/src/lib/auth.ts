@@ -10,8 +10,6 @@ interface ApiResponse<T> {
 
 interface LoginResponseData {
   token: string;
-  username: string;
-  role: string;
 }
 
 interface RegisterRequest {
@@ -60,6 +58,48 @@ export function isAuthenticated(): boolean {
   return !!getSession();
 }
 
+export function decodeJwtPayload(token: string): any | null {
+  try {
+    const payload = token.split('.')[1];
+    if (!payload) return null;
+    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const decoded = atob(base64);
+    return JSON.parse(decoded);
+  } catch (error) {
+    console.error("Error decoding JWT:", error);
+    return null;
+  }
+}
+
+// Obtener el userId del usuario actual desde el token
+export function getCurrentUserId(): number | null {
+  const session = getSession();
+  if (!session) return null;
+  const decoded = decodeJwtPayload(session.token);
+  return decoded?.userId ?? null;
+}
+
+// Obtener el restaurantId del manager actual
+export async function getOwnerRestaurantId(): Promise<number | null> {
+  const session = getSession();
+  if (!session || session.user.role !== 'RESTAURANT_MANAGER') return null;
+
+  const userId = getCurrentUserId();
+  if (!userId) return null;
+
+  const apiBase = import.meta.env.VITE_API_URL ?? 'http://localhost:8080';
+  try {
+    const res = await fetch(`${apiBase}/restaurant/owner/${userId}`, {
+      headers: { Authorization: `Bearer ${session.token}` },
+    });
+    if (!res.ok) return null;
+    const restaurants = await res.json();
+    return restaurants[0]?.id ?? null;
+  } catch {
+    return null;
+  }
+}
+
 // Login
 export async function login(username: string, password: string): Promise<{ success: boolean; message: string; user?: { username: string; role: string } }> {
   try {
@@ -75,7 +115,10 @@ export async function login(username: string, password: string): Promise<{ succe
       return { success: false, message: data.message || 'Error al iniciar sesión' };
     }
 
-    const { token, username: user, role } = data.data;
+    const { token } = data.data;
+    const decoded = decodeJwtPayload(token);
+    const role = decoded?.role ?? 'USER';
+    const user = decoded?.sub ?? username;
     saveSession(token, { username: user, role });
 
     return { success: true, message: data.message, user: { username: user, role } };
