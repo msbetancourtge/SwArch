@@ -1,5 +1,6 @@
 // Auth Service - Conexión con backend AuthService (puerto 8081)
 
+// Cambia 8081 por el puerto de tu Gateway (ej: 8080)
 const AUTH_API_BASE = import.meta.env.VITE_AUTH_API_BASE ?? "http://localhost:8081";
 
 // Tipos de respuesta del backend
@@ -76,6 +77,13 @@ export function getCurrentUserId(): number | null {
   const decoded = decodeJwtPayload(session.token);
   return decoded?.userId ?? null;
 }
+//obetener el username del usuario actual desde el token
+export function getCurrentUsername(): string | null {
+  const session = getSession();
+  if (!session) return null;
+  const decoded = decodeJwtPayload(session.token);
+  return decoded?.sub ?? null;
+}
 
 // Obtener el nombre del usuario actual desde el token
 export function getCurrentUserName(): string | null {
@@ -102,7 +110,7 @@ export function getCurrentUserInitials(): string {
 }
 
 // Login
-export async function login(username: string, password: string): Promise<{ success: boolean; message: string; user?: { username: string; role: string } }> {
+export async function login(username: string, password: string): Promise<{ success: boolean; message: string; user?: { username: string; role: string },token?: string }> {
   try {
     const res = await fetch(`${AUTH_API_BASE}/api/auth/login`, {
       method: 'POST',
@@ -124,7 +132,7 @@ export async function login(username: string, password: string): Promise<{ succe
     
     saveSession(token, { username: user, role });
 
-    return { success: true, message: data.message, user: { username: user, role } };
+    return { success: true, message: data.message,user: { username: user, role }, token: token };
   } catch (error) {
     console.error('Login error (usando modo desarrollo):', error);
     
@@ -135,7 +143,7 @@ export async function login(username: string, password: string): Promise<{ succe
       const mockUser = { username: 'admin', role: 'ADMIN' };
       const mockToken = 'mock-token-' + Date.now();
       saveSession(mockToken, mockUser);
-      return { success: true, message: 'Login exitoso (modo desarrollo)', user: mockUser };
+      return { success: true, message: 'Login exitoso (modo desarrollo)', user: mockUser, token: mockToken };
     }
     
     return { success: false, message: 'Credenciales inválidas' };

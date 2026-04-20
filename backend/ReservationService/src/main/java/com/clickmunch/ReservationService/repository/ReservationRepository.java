@@ -28,4 +28,7 @@ public interface ReservationRepository extends ListCrudRepository<Reservation, L
 
     @Query("SELECT * FROM reservations ORDER BY reservation_date DESC, reservation_time DESC")
     List<Reservation> findAllOrderedByDate();
+
+    @Query("SELECT * FROM reservations WHERE status = 'Confirmada' AND reservation_date = CURRENT_DATE AND (reservation_time + INTERVAL '10 minutes') < CURRENT_TIME")
+    List<Reservation> findOverdueConfirmedReservations();
 }

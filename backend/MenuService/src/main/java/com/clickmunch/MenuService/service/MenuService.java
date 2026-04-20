@@ -1,16 +1,19 @@
 package com.clickmunch.MenuService.service;
 
-import com.clickmunch.MenuService.dto.MenuItemRequest;
-import com.clickmunch.MenuService.dto.MenuCategoryRequest;
-import com.clickmunch.MenuService.dto.MenuRestaurantResponse;
-import com.clickmunch.MenuService.dto.MenuCreateRequest;
-import com.clickmunch.MenuService.entity.*;
-import com.clickmunch.MenuService.repository.*;
-import org.springframework.stereotype.Service;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
+
+import org.springframework.stereotype.Service;
+
+import com.clickmunch.MenuService.dto.MenuCategoryRequest;
+import com.clickmunch.MenuService.dto.MenuCreateRequest;
+import com.clickmunch.MenuService.dto.MenuItemRequest;
+import com.clickmunch.MenuService.dto.MenuRestaurantResponse;
+import com.clickmunch.MenuService.entity.MenuCategory;
+import com.clickmunch.MenuService.entity.MenuItem;
+import com.clickmunch.MenuService.repository.MenuCategoryRepository;
+import com.clickmunch.MenuService.repository.MenuItemRepository;
 
 @Service
 public class MenuService {
@@ -71,6 +74,9 @@ public class MenuService {
         item.setDescription(req.description());
         item.setPrice(req.price());
         item.setImageUrl(req.imageUrl());
+        item.setAvailableFrom(req.availableFrom());
+        item.setAvailableTo(req.availableTo());
+        item.setPreparationMinutes(req.preparationMinutes());
 
         return menuItemRepository.save(item);
     }
@@ -117,6 +123,9 @@ public class MenuService {
             mi.setDescription(ir.description());
             mi.setPrice(ir.price());
             mi.setImageUrl(ir.imageUrl());
+            mi.setAvailableFrom(ir.availableFrom());
+            mi.setAvailableTo(ir.availableTo());
+            mi.setPreparationMinutes(ir.preparationMinutes());
             itemsToSave.add(mi);
         }
     }
@@ -169,6 +178,9 @@ public class MenuService {
         updated.setDescription(req.description() != null ? req.description() : existing.getDescription());
         updated.setPrice(req.price() != null ? req.price() : existing.getPrice());
         updated.setImageUrl(req.imageUrl() != null ? req.imageUrl() : existing.getImageUrl());
+        updated.setAvailableFrom(req.availableFrom() != null ? req.availableFrom() : existing.getAvailableFrom());
+        updated.setAvailableTo(req.availableTo() != null ? req.availableTo() : existing.getAvailableTo());
+        updated.setPreparationMinutes(req.preparationMinutes() != null ? req.preparationMinutes() : existing.getPreparationMinutes());
 
         return menuItemRepository.save(updated);
     }

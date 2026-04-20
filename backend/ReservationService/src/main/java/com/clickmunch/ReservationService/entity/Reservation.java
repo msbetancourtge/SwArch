@@ -30,5 +30,7 @@ public class Reservation {
     private ReservationStatus status;
     private String notes;
     private Long orderId;
+    private Long tableId;
+    private LocalDateTime checkedInAt;
     private LocalDateTime createdAt;
 }

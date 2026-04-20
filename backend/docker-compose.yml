@@ -125,6 +125,67 @@ services:
     networks:
       - appnet
 
+  rating-db:
+    image: postgres:16
+    container_name: rating-db
+    restart: always
+    environment:
+      POSTGRES_DB: rating_db
+      POSTGRES_USER: mike
+      POSTGRES_PASSWORD: secret
+    ports:
+      - "5438:5432"
+    volumes:
+      - rating_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mike -d rating_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - appnet
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    restart: always
+    environment:
+      RABBITMQ_DEFAULT_USER: mike
+      RABBITMQ_DEFAULT_PASS: secret
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - appnet
+
+  notification-db:
+    image: postgres:16
+    container_name: notification-db
+    restart: always
+    environment:
+      POSTGRES_DB: notification_db
+      POSTGRES_USER: mike
+      POSTGRES_PASSWORD: secret
+    ports:
+      - "5439:5432"
+    volumes:
+      - notification_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mike -d notification_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - appnet
+
   apigateway:
     build: ./APIGateway
     container_name: apigateway
@@ -137,6 +198,8 @@ services:
       SERVICES_ORDER_URL: http://orderservice:8085
       SERVICES_RESERVATION_URL: http://reservationservice:8086
       SERVICES_CHECKOUT_URL: http://checkoutservice:8089
+      SERVICES_RATING_URL: http://ratingservice:8088
+      SERVICES_NOTIFICATION_URL: http://notificationservice:8087
     depends_on:
       authservice:
         condition: service_healthy
@@ -150,12 +213,22 @@ services:
         condition: service_healthy
       checkoutservice:
         condition: service_healthy
+      ratingservice:
+        condition: service_healthy
+      notificationservice:
+        condition: service_healthy
     networks:
       - appnet
 
   authservice:
     build: ./AuthService
     container_name: authservice
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8081/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
     ports:
       - "8081:8081"
     environment:
@@ -230,8 +303,14 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://order-db:5432/order_db
       SPRING_DATASOURCE_USERNAME: mike
       SPRING_DATASOURCE_PASSWORD: secret
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: mike
+      SPRING_RABBITMQ_PASSWORD: secret
     depends_on:
       order-db:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     networks:
       - appnet
@@ -245,8 +324,15 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://reservation-db:5432/reservation_db
       SPRING_DATASOURCE_USERNAME: mike
       SPRING_DATASOURCE_PASSWORD: secret
+      RESTAURANT_SERVICE_URL: http://restaurantservice:8082
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: mike
+      SPRING_RABBITMQ_PASSWORD: secret
     depends_on:
       reservation-db:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     networks:
       - appnet
@@ -270,6 +356,42 @@ services:
     networks:
       - appnet
 
+  ratingservice:
+    build: ./RatingService
+    container_name: ratingservice
+    ports:
+      - "8088:8088"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://rating-db:5432/rating_db
+      SPRING_DATASOURCE_USERNAME: mike
+      SPRING_DATASOURCE_PASSWORD: secret
+    depends_on:
+      rating-db:
+        condition: service_healthy
+    networks:
+      - appnet
+
+  notificationservice:
+    build: ./NotificationService
+    container_name: notificationservice
+    ports:
+      - "8087:8087"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://notification-db:5432/notification_db
+      SPRING_DATASOURCE_USERNAME: mike
+      SPRING_DATASOURCE_PASSWORD: secret
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: mike
+      SPRING_RABBITMQ_PASSWORD: secret
+    depends_on:
+      notification-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - appnet
+
 volumes:
   auth_data:
   restaurant_data:
@@ -277,6 +399,8 @@ volumes:
   menu_data:
   order_data:
   reservation_data:
+  rating_data:
+  notification_data:
 
 networks:
   appnet:

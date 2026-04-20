@@ -10,6 +10,8 @@ CREATE TABLE IF NOT EXISTS reservations (
     status VARCHAR(50) NOT NULL DEFAULT 'Pendiente',
     notes TEXT,
     order_id BIGINT,
+    table_id BIGINT,
+    checked_in_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT NOW()
 );
 

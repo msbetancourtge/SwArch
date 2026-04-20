@@ -1,14 +1,15 @@
 package com.clickmunch.OrderService.entity;
 
-import lombok.Data;
-import lombok.Builder;
-import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+
 import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Table;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
 @Builder
@@ -27,6 +28,11 @@ public class Order {
     private String notes;
     private String eta;
     private BigDecimal total;
+    private Long tableId;
+    private Long waiterId;
+    private BigDecimal tipAmount;
+    private String waiterComment;
+    private Integer preparationMinutes;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

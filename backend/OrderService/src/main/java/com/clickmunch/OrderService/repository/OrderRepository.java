@@ -24,4 +24,7 @@ public interface OrderRepository extends ListCrudRepository<Order, Long> {
 
     @Query("SELECT * FROM orders ORDER BY created_at DESC")
     List<Order> findAllOrderedByDate();
+
+    @Query("SELECT * FROM orders WHERE waiter_id = :waiterId ORDER BY created_at DESC")
+    List<Order> findByWaiterId(@Param("waiterId") Long waiterId);
 }

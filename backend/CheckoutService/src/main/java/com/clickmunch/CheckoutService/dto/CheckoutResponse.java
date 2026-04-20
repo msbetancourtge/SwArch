@@ -7,5 +7,6 @@ public record CheckoutResponse(
         Long reservationId,
         BigDecimal total,
         String status,
-        String message
+        String message,
+        String paymentMethod
 ) {}

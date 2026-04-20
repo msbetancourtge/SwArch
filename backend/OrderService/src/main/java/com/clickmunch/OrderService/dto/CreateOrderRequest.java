@@ -18,6 +18,9 @@ public record CreateOrderRequest(
         String notes,
         String eta,
         Long reservationId,
+        Long tableId,
+        Long waiterId,
+        Integer preparationMinutes,
         @NotNull @Size(min = 1) List<@Valid OrderItemRequest> items
 ) {
     public record OrderItemRequest(

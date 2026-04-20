@@ -15,6 +15,11 @@ public record OrderResponse(
         String notes,
         String eta,
         BigDecimal total,
+        Long tableId,
+        Long waiterId,
+        BigDecimal tipAmount,
+        String waiterComment,
+        Integer preparationMinutes,
         List<OrderItemResponse> items,
         LocalDateTime createdAt,
         LocalDateTime updatedAt

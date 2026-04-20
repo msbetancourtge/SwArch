@@ -88,7 +88,8 @@ public class CheckoutService {
                 reservationId,
                 total,
                 "Preparing",
-                "Order placed successfully"
+                "Order placed successfully",
+                request.paymentMethod() != null ? request.paymentMethod() : "CASH"
         );
     }
 }
