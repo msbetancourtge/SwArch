@@ -20,14 +20,24 @@ const ACTIVE_STATUS: OrderStatus[] = [
   "Served",
 ];
 
-// ⏱️ Util: tiempo en minutos desde creación
+// 🧠 Normalizador (CLAVE DEL FIX)
+const normalizeArray = (json: any): Order[] => {
+  if (Array.isArray(json)) return json;
+  if (Array.isArray(json?.content)) return json.content;
+  if (Array.isArray(json?.data)) return json.data;
+
+  console.warn("⚠️ Formato inesperado:", json);
+  return [];
+};
+
+// ⏱️ Util: tiempo en minutos
 export const getMinutes = (date: string) => {
   const created = new Date(date);
   const now = new Date();
   return Math.floor((now.getTime() - created.getTime()) / 60000);
 };
 
-// 🎨 Util: color por tiempo
+// 🎨 Color por tiempo
 export const getTimeColor = (min: number) => {
   if (min < 10) return "text-green-600";
   if (min < 20) return "text-yellow-500";
@@ -52,7 +62,7 @@ export const getNextStatus = (status: OrderStatus): OrderStatus | null => {
   }
 };
 
-// 🍽️ Validar si una mesa está libre
+// 🍽️ Validar mesa libre
 export const isTableFree = (tableId: number, orders: Order[]) => {
   return !orders.some(
     (o) =>
@@ -61,23 +71,26 @@ export const isTableFree = (tableId: number, orders: Order[]) => {
   );
 };
 
-// =======================
-// 🚀 SERVICE REAL
-// =======================
-
 export const orderService = {
 
-  // 📋 Obtener órdenes por restaurante
+  // 📋 Obtener todas las órdenes
   async getByRestaurant(restaurantId: number): Promise<Order[]> {
     const res = await fetch(`${API}/order/restaurant/${restaurantId}`, {
       headers: getHeaders(),
     });
 
-    if (!res.ok) throw new Error("Error cargando órdenes");
-    return res.json();
+    if (!res.ok) {
+      const err = await res.text();
+      throw new Error(err || "Error cargando órdenes");
+    }
+
+    const json = await res.json();
+
+    // 🔥 AQUÍ ESTABA EL BUG
+    return normalizeArray(json);
   },
 
-  // 🔥 Solo órdenes activas
+  // 🔥 Órdenes activas
   async getActive(restaurantId: number): Promise<Order[]> {
     const data = await this.getByRestaurant(restaurantId);
     return data.filter((o) => ACTIVE_STATUS.includes(o.status));
@@ -99,10 +112,13 @@ export const orderService = {
 
   // 🍽️ Asignar mesa
   async assignTable(orderId: number, tableId: number): Promise<void> {
-    const res = await fetch(`${API}/order/${orderId}/assign-table?tableId=${tableId}`, {
-      method: "PUT",
-      headers: getHeaders(),
-    });
+    const res = await fetch(
+      `${API}/order/${orderId}/assign-table?tableId=${tableId}`,
+      {
+        method: "PUT",
+        headers: getHeaders(),
+      }
+    );
 
     if (!res.ok) {
       const err = await res.text();
@@ -117,7 +133,9 @@ export const orderService = {
     });
 
     if (!res.ok) return null;
-    return res.json();
+
+    const json = await res.json();
+    return json;
   },
 
   // 📜 Historial
@@ -126,9 +144,13 @@ export const orderService = {
       headers: getHeaders(),
     });
 
-    if (!res.ok) throw new Error("Error cargando historial");
+    if (!res.ok) {
+      const err = await res.text();
+      throw new Error(err || "Error cargando historial");
+    }
 
-    const data: Order[] = await res.json();
+    const json = await res.json();
+    const data = normalizeArray(json);
 
     return data.filter(
       (o) => o.status === "Delivered" || o.status === "Cancelled"
@@ -138,5 +160,5 @@ export const orderService = {
   // 🧪 Debug
   logOrder(order: Order) {
     console.log("📦 ORDER:", order);
-  }
+  },
 };
