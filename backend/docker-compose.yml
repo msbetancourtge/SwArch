@@ -389,12 +389,9 @@ services:
     expose:
       - "8089"
     environment:
-      MENU_SERVICE_URL: http://menuservice:8084
       ORDER_SERVICE_URL: http://orderservice:8085
       RESERVATION_SERVICE_URL: http://reservationservice:8086
     depends_on:
-      menuservice:
-        condition: service_healthy
       orderservice:
         condition: service_healthy
       reservationservice:

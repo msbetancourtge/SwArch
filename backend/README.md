@@ -12,8 +12,8 @@ Este backend tiene una arquitectura de microservicios con un único API Gateway 
   - MenuService → MongoDB (`menu_db` en localhost:27018)
   - OrderService → PostgreSQL (`order_db` en localhost:5436)
   - ReservationService → PostgreSQL (`reservation_db` en localhost:5437)
-  - RatingService → PostgreSQL (`rating_db` en localhost:5440)
-  - NotificationService → PostgreSQL (`notification_db` en localhost:5441)
+  - RatingService → PostgreSQL (`rating_db` en localhost:5438)
+  - NotificationService → PostgreSQL (`notification_db` en localhost:5439)
 - Message Broker: RabbitMQ 3 (AMQP en localhost:5672, Management UI en localhost:15672)
 - API Gateway: `APIGateway` (expone una interfaz pública unificada al frontend)
 - Puertos de servicios:
@@ -26,7 +26,7 @@ Este backend tiene una arquitectura de microservicios con un único API Gateway 
   - ReservationService: 8086
   - NotificationService: 8087
   - RatingService: 8088
-  - CheckoutService: 8089
+  - CheckoutService: 8089 (Python / FastAPI)
 - Enrutamiento (Gateway → Servicios):
   - `/auth/**` → AuthService (`/api/auth/**`)
   - `/restaurant/**` → RestaurantService (`/api/restaurants/**`)
@@ -52,7 +52,7 @@ El gateway reescribe las rutas entrantes hacia la API interna de cada servicio. 
 - Patrón Repository: Los repositorios de Spring Data como `UserRepository` abstraen la persistencia.
 - Patrón Builder: Las entidades (ej. `User`) usan Lombok `@Builder` para su construcción.
 - Inyección de Dependencias: Componentes gestionados por Spring (`@Service`, `@RestController`, `@Bean`).
-- Patrón de Integración/Cliente: `RestaurantService` usa `AuthClient` para consultar datos de usuarios; los servicios se comunican entre sí vía HTTP.
+- Patrón de Integración/Cliente: `RestaurantService` usa `AuthClient` para consultar datos de usuarios; los servicios se comunican entre sí vía HTTP. `CheckoutService` implementa una orquestación ligera en Python/FastAPI para coordinar ReservationService y OrderService.
 - Mensajería Asíncrona (Event-Driven): OrderService y ReservationService publican eventos de dominio a un exchange de tipo topic en RabbitMQ (`clickmunch.events`). NotificationService consume estos eventos de forma asíncrona para generar notificaciones automáticas. Esto desacopla los productores de los consumidores y mejora la resiliencia del sistema.
   - Routing keys: `order.created`, `order.status.changed`, `reservation.confirmed`, `reservation.cancelled`
   - Colas: `notification.order.queue`, `notification.reservation.queue`

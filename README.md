@@ -30,122 +30,167 @@ Click & Munch is a digital platform designed to streamline the dining experience
 
 For restaurant owners and managers, the platform provides a comprehensive dashboard to manage restaurant profiles, define and update menu categories and items (including images and pricing), and monitor incoming orders in real time. Chefs see new orders appear instantly on a kitchen board and advance them through a strict state machine (PENDING → IN_PREPARATION → READY → DELIVERED), with per-unit special instructions (e.g. "sin lechuga") so two of the same dish in one order can have different preparations. The system supports role-based access for different staff members (managers, waiters, chefs), ensuring that each team member sees only the information relevant to their responsibilities.
 
-The architecture is built around independent microservices—authentication, restaurant management, geolocation, menu management, and order lifecycle—connected through a centralized API Gateway that acts as the single public entry point for both REST traffic and the realtime STOMP/WebSocket channel that pushes kitchen events to chefs the moment a waiter places an order. This design ensures scalability, fault isolation, and the ability to evolve each service independently as the platform grows.
+The architecture is built around independent microservices—authentication, restaurant management, geolocation, menu management, order lifecycle, reservations, notifications, ratings, and checkout orchestration—connected through a centralized API Gateway that acts as the single public entry point for both REST traffic and the realtime STOMP/WebSocket channel that pushes kitchen events to chefs the moment a waiter places an order. Asynchronous events flow between services via RabbitMQ. This design ensures scalability, fault isolation, and the ability to evolve each service independently as the platform grows.
 
 ---
 
 ## 3. Architectural Structures
 
-### Component-and-Connector (C&C) Structure
+---
+
+### 3.1 Component-and-Connector (C&C) Structure
 
 #### C&C View
 
-```
-┌────────────────────────────────────────────────────────┐
-│                          Clients                       │
-│   ┌──────────────────┐          ┌──────────────────┐   │
-│   │  Mobile App      │          │  Web Dashboard   │   │
-│   │  (Expo / React   │          │  (React + Vite)  │   │
-│   │   Native)        │          │  Port 5173       │   │
-│   └────────┬─────────┘          └────────┬─────────┘   │
-└────────────┼─────────────────────────────┼─────────────┘
-             │   HTTP / REST + STOMP over WebSocket
-             └──────────────┬──────────────┘
-                            │
-                            ▼
-              ┌──────────────────────────────────┐
-              │           API Gateway            │
-              │ (Spring Cloud Gateway / WebFlux  │
-              │   on Netty — single public edge) │
-              │            Port 8080             │
-              │  ┌────────────────────────────┐  │
-              │  │ JWT Auth Filter (per-route)│  │
-              │  │ Path Rewriting             │  │
-              │  │ CORS Handling              │  │
-              │  │ WebSocket Upgrade Proxy    │  │
-              │  └────────────────────────────┘  │
-              └──┬──────┬──────┬──────┬──────────┘
-                 │      │      │      │
-        ┌────────┘      │      │      └────────┐
-        ▼               ▼      ▼               ▼
-┌───────────┐  ┌──────────────┐  ┌───────────┐  ┌────────────┐
-│AuthService│  │  Restaurant  │  │MenuService│  │OrderService│
-│ (8081)    │  │  Service     │  │ (8084)    │  │ (8085)     │
-│ internal  │  │  (8082)      │  │ internal  │  │ + WS /ws   │
-│           │  │  internal    │  │           │  │ internal   │
-└─────┬─────┘  └──┬─────┬────-┘  └─────┬─────┘  └──────┬─────┘
-      │           │     │              │               │
-      ▼           │     ▼              ▼               ▼
-┌───────────┐     │  ┌──────────┐   ┌───────────┐   ┌───────────┐
-│ auth_db   │     │  │GeoService│   │ menu_db   │   │ order_db  │
-│ PostgreSQL│     │  │Port 8083 │   │ MongoDB 7 │   │PostgreSQL │
-│ Port 5433 │     │  └────┬─────┘   │ Port 27018│   │ Port 5436 │
-└───────────┘     │       │         └───────────┘   └───────────┘
-                  ▼       ▼
-          ┌─────────────┐ ┌───────────┐
-          │restaurant_db│ │  geo_db   │
-          │ PostgreSQL  │ │  PostGIS  │
-          │ Port 5434   │ │ Port 5435 │
-          └─────────────┘ └───────────┘
-```
+<!-- Diagram placeholder: replace src with your exported C&C image path -->
+![Component-and-Connector (C&C) View Placeholder](./images/cc-view-placeholder.png)
 
-#### Architectural Styles Used
-
-| Style | Where Applied | Description |
-|-------|---------------|-------------|
-| **Microservices** | Entire backend | The system is decomposed into six independently deployable services (AuthService, RestaurantService, GeoService, MenuService, OrderService, API Gateway), each owning its own database and communicating via REST. |
-| **API Gateway** | APIGateway service | A single entry point routes all external traffic — REST and STOMP/WebSocket — performs path rewriting, handles CORS, and enforces JWT authentication on protected REST routes before forwarding to downstream services. |
-| **Layered Architecture** | Each microservice | Every service follows a Controller → Service → Repository layering, separating HTTP handling, business logic, and data access concerns. |
-| **Client-Server** | Frontend ↔ Backend | The mobile app and web dashboard act as clients that consume the backend's RESTful API through the gateway. |
-| **Pipe-and-Filter** | Gateway request pipeline | Incoming requests pass through a pipeline of filters (JWT authentication, path rewriting, URI resolution) before reaching the target service handler. |
-| **Publish/Subscribe** | OrderService kitchen events | OrderService publishes `ORDER_CREATED` and `ORDER_STATUS_CHANGED` events to `/topic/kitchen/{restaurantId}` over STOMP/WebSocket. Chef clients subscribe to their restaurant's topic and receive updates in real time without polling. |
-| **State Machine** | OrderService order lifecycle | Orders transition through a strict state machine (PENDING → IN_PREPARATION → READY → DELIVERED, plus CANCELLED) enforced at the service layer; invalid transitions are rejected. |
-
-#### Architectural Elements and Relations
+#### Description of Architectural Elements and Relations
 
 **Components (Services):**
 
-| Component | Responsibility | Technology |
-|-----------|---------------|------------|
-| **API Gateway** | Single public ingress for REST and WebSocket; routes, rewrites paths, enforces JWT on protected routes, handles CORS, and proxies the HTTP→WebSocket upgrade for STOMP traffic. | Spring Cloud Gateway Server WebFlux (reactive, Netty), Java 21 |
-| **AuthService** | User registration, login, JWT token generation, password reset, user lookup. | Spring Boot 4, Spring Security, Spring Data JDBC, PostgreSQL |
-| **RestaurantService** | Restaurant CRUD, owner validation, nearby search orchestration, restaurant details aggregation. | Spring Boot 4, Spring Data JDBC, PostgreSQL |
-| **GeoService** | Geospatial storage and proximity queries for restaurant locations. | Spring Boot 4, Spring Data JDBC, PostGIS |
-| **MenuService** | Menu category and item management (CRUD), full menu creation per restaurant. | Spring Boot 4, Spring Data MongoDB, MongoDB |
-| **OrderService** | Order lifecycle management (create, retrieve, state-machine transitions) and realtime kitchen event fan-out. One row per ordered unit so per-unit notes (e.g. "sin lechuga") can differ in the same order. | Spring Boot 4, Spring Data JDBC, Spring WebSocket (STOMP), PostgreSQL |
-| **Web Dashboard** | Admin panel for restaurant, product, and kitchen management. Chef Kitchen page subscribes to the realtime channel. | React 19, TypeScript, Vite, TailwindCSS, @stomp/stompjs |
-| **Mobile App** | Customer-facing app for browsing restaurants, menus, and ordering. | React Native, Expo SDK 54, Zustand, React Query |
+| Component | Technology | Responsibility |
+|-----------|-----------|----------------|
+| **API Gateway** | Spring Cloud Gateway WebFlux (Java 21, Netty) | Single public ingress on `:8080`. Routes REST traffic, enforces JWT on protected routes, handles CORS, and proxies HTTP→WebSocket upgrades for the kitchen channel. |
+| **AuthService** | Spring Boot 4, JDBC, PostgreSQL | User registration, login, JWT generation, and user lookup. |
+| **RestaurantService** | Spring Boot 4, JDBC, PostgreSQL | Restaurant CRUD, owner validation (via AuthService), nearby search (via GeoService), menu aggregation (via MenuService). |
+| **GeoService** | Spring Boot 4, JDBC, PostGIS | Geospatial location storage, proximity queries, distance and ETA calculation. Internal-only. |
+| **MenuService** | Spring Boot 4, MongoDB | Menu category and item management per restaurant. |
+| **OrderService** | Spring Boot 4, JDBC, PostgreSQL, STOMP, RabbitMQ | Order lifecycle state machine. One DB row per ordered unit for per-unit notes. Publishes events to RabbitMQ; pushes realtime events over STOMP. |
+| **ReservationService** | Spring Boot 4, JDBC, PostgreSQL, RabbitMQ | Table reservations, capacity management, order linking. Publishes events to RabbitMQ. |
+| **NotificationService** | Spring Boot 4, JDBC, PostgreSQL, RabbitMQ, SSE | Consumes events from RabbitMQ, persists notifications, streams to clients via SSE. |
+| **RatingService** | Spring Boot 4, JDBC, PostgreSQL | Restaurant and waiter ratings with aggregate score summaries. |
+| **CheckoutService ★** | **Python 3.12 / FastAPI / httpx** | Saga orchestrator: validates reservation → creates order → links reservation. No own database. |
+| **RabbitMQ** | RabbitMQ 3 (AMQP) | Async event bus decoupling OrderService/ReservationService from NotificationService. |
+| **Web Dashboard** | React 19, TypeScript, Vite, TailwindCSS | Admin panel; Chef Kitchen page subscribes to STOMP realtime channel. |
+| **Mobile App** | React Native, Expo SDK 54, Zustand, React Query | Customer-facing browsing, reservations, and ordering. |
 
 **Connectors (Relations):**
 
 | From | To | Protocol | Description |
 |------|----|----------|-------------|
-| Mobile App / Dashboard | API Gateway | HTTP/REST | All REST client traffic enters through port 8080. |
-| API Gateway | AuthService | HTTP/REST | Forwards `/auth/**` → `/api/auth/**` (public). |
-| API Gateway | RestaurantService | HTTP/REST | Forwards `/restaurant/**` → `/api/restaurants/**` (JWT-protected). |
-| API Gateway | MenuService | HTTP/REST | Forwards `/menu/**` → `/api/menus/**` (JWT-protected). |
-| API Gateway | OrderService | HTTP/REST | Forwards `/order/**` → `/api/orders/**` (JWT-protected). |
-| Mobile App / Dashboard (Chef) | API Gateway | WebSocket/STOMP | Clients connect to `ws://<gateway>:8080/ws/kitchen`. The gateway proxies the HTTP Upgrade handshake transparently (Spring Cloud Gateway WebFlux on Netty). |
-| API Gateway | OrderService | WebSocket/STOMP | Internal upgrade to `ws://orderservice:8085/ws/kitchen` for the kitchen events channel. |
-| RestaurantService | AuthService | HTTP/REST | Validates owner identity via `AuthClient`. |
-| RestaurantService | GeoService | HTTP/REST | Creates locations and queries nearby restaurants via `GeoClient`. |
-| RestaurantService | MenuService | HTTP/REST | Fetches menu data for restaurant details via `MenuClient`. |
-| AuthService | auth_db | JDBC | PostgreSQL database for users and credentials. |
-| RestaurantService | restaurant_db | JDBC | PostgreSQL database for restaurant records. |
-| GeoService | geo_db | JDBC | PostGIS database for geospatial location data. |
-| MenuService | menu_db | MongoDB Driver | MongoDB database for menu categories and items. |
-| OrderService | order_db | JDBC | PostgreSQL database for orders and order_items (one row per unit). |
+| Mobile / Dashboard | API Gateway | HTTP/REST | All REST enters on port 8080. |
+| Dashboard Chef view | API Gateway | WebSocket/STOMP | `ws://gateway:8080/ws/kitchen` |
+| API Gateway | AuthService | HTTP | `/auth/**` → `/api/auth/**` (public) |
+| API Gateway | RestaurantService | HTTP | `/restaurant/**` (JWT-protected) |
+| API Gateway | MenuService | HTTP | `/menu/**` (JWT-protected) |
+| API Gateway | OrderService | HTTP + WebSocket | `/order/**` + `/ws/kitchen` proxy |
+| API Gateway | ReservationService | HTTP | `/reservation/**` (JWT-protected) |
+| API Gateway | CheckoutService | HTTP | `/checkout/**` (JWT-protected) |
+| API Gateway | RatingService | HTTP | `/rating/**` (JWT-protected) |
+| API Gateway | NotificationService | HTTP + SSE | `/notification/**` (JWT-protected) |
+| CheckoutService | ReservationService | HTTP | Validate & link reservation |
+| CheckoutService | OrderService | HTTP | `POST /api/orders` |
+| RestaurantService | AuthService | HTTP | Owner identity validation |
+| RestaurantService | GeoService | HTTP | Location creation and nearby search |
+| RestaurantService | MenuService | HTTP | Menu aggregation |
+| OrderService | RabbitMQ | AMQP | Publish `ORDER_CREATED`, `ORDER_STATUS_CHANGED` |
+| ReservationService | RabbitMQ | AMQP | Publish `RESERVATION_CREATED` |
+| RabbitMQ | NotificationService | AMQP | Event delivery |
+| Each service | Own DB | JDBC / MongoDB | Each service owns exactly one database |
 
-#### Realtime channel (WebSocket)
+#### Description of Architectural Styles and Patterns
 
-When a waiter places a new order via `POST /order` (HTTP REST, through the gateway), the `OrderService`:
+| Style / Pattern | Where Applied | Description |
+|-----------------|---------------|-------------|
+| **Microservices** | Entire backend | Ten independently deployable services, each owning its own database. |
+| **API Gateway** | APIGateway | Single entry point: routing, JWT enforcement, CORS, WebSocket proxy. |
+| **Saga (Orchestration)** | CheckoutService | Coordinates multi-step checkout across OrderService and ReservationService; handles failures per step. |
+| **Publish/Subscribe** | RabbitMQ bus | OrderService and ReservationService publish events; NotificationService subscribes asynchronously. |
+| **Event-Driven** | OrderService kitchen channel | `ORDER_*` events pushed to chef clients over STOMP/WebSocket in realtime. |
+| **Layered Architecture** | Each microservice | Controller → Service → Repository; no layer skipping. |
+| **Pipe-and-Filter** | Gateway pipeline | JWT validation → path rewriting → URI resolution before forwarding. |
+| **State Machine** | OrderService | Strict lifecycle: PENDING → IN_PREPARATION → READY → DELIVERED / CANCELLED. |
+| **Client-Server** | Frontend ↔ Backend | Mobile and Dashboard consume REST APIs through the gateway. |
+| **Repository** | Data layer | Spring Data repositories encapsulate all persistence queries. |
 
-1. Persists the order and its items (one row per ordered unit).
-2. Publishes a `ORDER_CREATED` event to `/topic/kitchen/{restaurantId}` via STOMP.
+---
 
-Chefs connected to the dashboard's Kitchen page are subscribed to that topic and see the card appear instantly, with no polling. The same mechanism publishes `ORDER_STATUS_CHANGED` whenever the chef advances an order (PENDING → IN_PREPARATION → READY → DELIVERED). A 60-second safety-net poll keeps the UI correct after reconnects or missed frames.
+### 3.2 Deployment Structure
 
-**Single-edge ingress (REST + WebSocket on port 8080):** the API Gateway runs the reactive flavor of Spring Cloud Gateway (Netty + WebFlux), which natively proxies the HTTP Upgrade handshake. A dedicated route `path("/ws/**")` with a `ws://orderservice:8085` URI tells the gateway to switch into WebSocket pipe mode and stream STOMP frames between the client and OrderService. Backend microservices (`authservice`, `restaurantservice`, `geoservice`, `menuservice`, `orderservice`) are no longer published to the host; they are reachable only inside the Docker network, which closes the previous "two public edges" surface area.
+#### Deployment View
+
+All backend components run as Docker containers on a single host within the `appnet` bridge network.
+
+<!-- Diagram placeholder: replace src with your exported Deployment image path -->
+![Deployment View Placeholder](./images/deployment-view-placeholder.png)
+
+#### Description of Architectural Elements and Relations
+
+| Element | Type | Description |
+|---------|------|-------------|
+| **Host Machine** | Execution environment | Runs Docker Engine; Docker Compose orchestrates all containers. |
+| **appnet** | Docker bridge network | Private virtual network; containers communicate via DNS service names (e.g., `http://authservice:8081`). |
+| **apigateway** | Container | Only externally reachable service endpoint; binds host port 8080. |
+| **`*service` containers** | Containers | `expose`d (visible inside `appnet`) but not `port`-published to the host. |
+| **`*-db` containers** | Containers | Backing stores; host ports published for dev inspection only. |
+| **rabbitmq** | Container | AMQP broker; ports 5672 and 15672 published to the host. |
+| **Health checks** | Dependency mechanism | Every container declares a health check; `depends_on: condition: service_healthy` prevents startup race conditions. |
+
+#### Description of Architectural Patterns
+
+| Pattern | Description |
+|---------|-------------|
+| **Containerisation** | Every component is a Docker image; environment parity between dev and production. |
+| **Service discovery via DNS** | Docker Compose `appnet` resolves container names; inter-service URLs are environment variables. |
+| **Single-edge ingress** | Only the API Gateway is published externally, shrinking the attack surface. |
+| **Externalized configuration** | DB URLs, credentials, and inter-service URLs injected via Docker Compose environment variables (Twelve-Factor App). |
+
+---
+
+### 3.3 Layered Structure
+
+#### Layered View
+
+Every microservice (Java and Python) follows the same four-layer vertical slice:
+
+<!-- Diagram placeholder: replace src with your exported Layered image path -->
+![Layered View Placeholder](./images/layered-view-placeholder.png)
+
+#### Description of Architectural Elements and Relations
+
+| Layer | Element | Responsibility |
+|-------|---------|----------------|
+| **Presentation** | Controllers / routers | Accept HTTP requests, validate input, map to DTOs, return structured responses. Never contain business logic. |
+| **Business Logic** | Service classes / functions | Enforce business rules, drive state machines, orchestrate HTTP calls to other services. |
+| **Data Access** | Repository interfaces | Encapsulate all persistence queries. CheckoutService (Python) has no data access layer — it is a pure orchestrator. |
+| **Infrastructure** | Databases, RabbitMQ, external clients | Backing stores and messaging transport. Never called directly from controllers. |
+
+#### Description of Architectural Patterns
+
+| Pattern | Description |
+|---------|-------------|
+| **Layered (N-Tier)** | Strict unidirectional dependency: presentation → business → data → infrastructure. No layer skipping. |
+| **DTO pattern** | Java records and Pydantic models are immutable transfer objects; entities are never exposed in API responses. |
+| **Repository pattern** | Persistence mechanism (PostgreSQL, MongoDB) is hidden behind interfaces and swappable without touching business logic. |
+| **Dependency Injection** | Spring IoC (Java) and FastAPI's dependency system (Python) wire components at startup, enabling unit-testable mock substitution. |
+
+---
+
+### 3.4 Decomposition Structure
+
+#### Decomposition View
+
+The system is decomposed into five functional domains grouped by business capability:
+
+<!-- Diagram placeholder: replace src with your exported Decomposition image path -->
+![Decomposition View Placeholder](./images/decomposition-view-placeholder.png)
+
+#### Description of Architectural Elements and Relations
+
+| Domain | Services | Responsibility Boundary |
+|--------|----------|------------------------|
+| **Ingress** | API Gateway | All client-facing concerns: routing and security. No business logic. |
+| **Identity & Access** | AuthService | User identity and JWT issuance. Consumed by the gateway and RestaurantService. |
+| **Venue Management** | RestaurantService, GeoService, MenuService | Venue profile, location, and menu. GeoService is internal-only. |
+| **Ordering** | CheckoutService ★, OrderService, ReservationService | End-to-end purchase flow. CheckoutService (Python) is the saga entry point. |
+| **Customer Engagement** | NotificationService, RatingService | Realtime alerts and post-experience reviews. |
+| **Infrastructure** | RabbitMQ | Shared event bus; decouples producers from consumers. |
+
+**Boundary rules:**
+- Cross-domain communication uses only REST (sync) or RabbitMQ (async).
+- Intra-domain REST calls are allowed (e.g., RestaurantService → GeoService); cross-database access is forbidden.
+- The Ingress domain contains no business logic; it is a traffic director only.
 
 ---
 
@@ -159,14 +204,14 @@ Chefs connected to the dashboard's Kitchen page are subscribed to that topic and
 
 ### Backend
 
-The current local compose stack brings up 6 core containers for the active flow: API Gateway, AuthService, RestaurantService, GeoService, MenuService, OrderService, 5 backing databases, and RabbitMQ for order events.
+The backend stack comprises 10 microservices, 8 backing databases, and 1 RabbitMQ broker — all orchestrated by Docker Compose (29 containers total).
 
 ```bash
 # 1. Clone the repository
 git clone <repository-url>
 cd ClickAndMunchApp
 
-# 2. Start all backend services
+# 2. Build and start all backend services
 cd backend
 docker compose up --build -d
 
@@ -174,22 +219,26 @@ docker compose up --build -d
 docker compose ps
 ```
 
-All containers should show **"(healthy)"**. The API Gateway is the single public edge for the microservices: REST is at `http://localhost:8080` and the realtime kitchen WebSocket is at `ws://localhost:8080/ws/kitchen` (proxied to OrderService internally). Backend microservice ports are intentionally not published to the host — only the gateway, the databases, and the RabbitMQ admin UI are.
+All containers should show **"(healthy)"**. Public endpoints:
+
+- REST API: `http://localhost:8080`
+- Kitchen WebSocket: `ws://localhost:8080/ws/kitchen`
+- RabbitMQ Management: `http://localhost:15672` (user: `mike` / `secret`)
 
 | Service | Host port | Notes |
 |---------|----------:|-------|
-| API Gateway (REST + WebSocket) | **8080** | Only public edge for the microservices |
-| AuthService | — | Internal only (`authservice:8081` on `appnet`) |
-| RestaurantService | — | Internal only (`restaurantservice:8082`) |
-| GeoService | — | Internal only (`geoservice:8083`) |
-| MenuService | — | Internal only (`menuservice:8084`) |
-| OrderService | — | Internal only (`orderservice:8085`, REST + WS) |
-| ReservationService | — | Internal only (`reservationservice:8086`) |
-| NotificationService | — | Internal only (`notificationservice:8087`) |
-| RatingService | — | Internal only (`ratingservice:8088`) |
-| CheckoutService | — | Internal only (`checkoutservice:8089`) |
-| RabbitMQ (AMQP) | 5672 | Direct host port for local producers/consumers |
-| RabbitMQ Management UI | 15672 | `http://localhost:15672` |
+| API Gateway (REST + WebSocket) | **8080** | Only public edge |
+| AuthService | — | Internal only |
+| RestaurantService | — | Internal only |
+| GeoService | — | Internal only |
+| MenuService | — | Internal only |
+| OrderService | — | Internal only (REST + WS) |
+| ReservationService | — | Internal only |
+| NotificationService | — | Internal only (REST + SSE) |
+| RatingService | — | Internal only |
+| CheckoutService ★ Python | — | Internal only |
+| RabbitMQ (AMQP) | **5672** | |
+| RabbitMQ Management UI | **15672** | |
 | auth_db (PostgreSQL) | 5433 | Dev inspection |
 | restaurant_db (PostgreSQL) | 5434 | Dev inspection |
 | geo_db (PostGIS) | 5435 | Dev inspection |
@@ -199,49 +248,33 @@ All containers should show **"(healthy)"**. The API Gateway is the single public
 | rating_db (PostgreSQL) | 5438 | Dev inspection |
 | notification_db (PostgreSQL) | 5439 | Dev inspection |
 
-Gateway-exposed routes currently verified in this branch:
+**Gateway routes:**
 
-- `/auth/**` -> AuthService
-- `/restaurant/**` -> RestaurantService
-- `/menu/**` -> MenuService
-- `/order/**` -> OrderService
-- `/reservation/**` -> ReservationService
-- `/checkout/**` -> CheckoutService
-- `/rating/**` -> RatingService
-- `/notification/**` -> NotificationService
+| Route | Service |
+|-------|---------|
+| `/auth/**` | AuthService |
+| `/restaurant/**` | RestaurantService |
+| `/menu/**` | MenuService |
+| `/order/**` | OrderService |
+| `/ws/kitchen` | OrderService WebSocket |
+| `/reservation/**` | ReservationService |
+| `/checkout/**` | CheckoutService (Python/FastAPI) |
+| `/rating/**` | RatingService |
+| `/notification/**` | NotificationService |
 
-Direct-only local endpoints (not proxied by the gateway):
-
-- RabbitMQ management UI: `http://localhost:15672` (default user from `docker-compose.yml`)
-
-All other HTTP traffic — including password-reset and the GeoService — goes through the gateway. Internal-only endpoints are reachable only between containers on the `appnet` Docker network.
-
-**Quick test:** Register a user through the gateway:
+**Quick test — register and log in:**
 
 ```bash
 curl -X POST http://localhost:8080/auth/register \
   -H "Content-Type: application/json" \
-  -d '{
-    "name": "Test User",
-    "email": "test@example.com",
-    "username": "testuser",
-    "password": "123456",
-    "role": "CUSTOMER"
-  }'
-```
+  -d '{"name":"Test User","email":"test@example.com","username":"testuser","password":"123456","role":"CUSTOMER"}'
 
-Then log in and use the returned JWT for protected routes:
-
-```bash
 curl -X POST http://localhost:8080/auth/login \
   -H "Content-Type: application/json" \
-  -d '{
-    "username": "testuser",
-    "password": "123456"
-  }'
+  -d '{"username":"testuser","password":"123456"}'
 ```
 
-**Place an order (as waiter, through the gateway):**
+**Place an order (waiter flow):**
 
 ```bash
 curl -X POST http://localhost:8080/order \
@@ -258,54 +291,62 @@ curl -X POST http://localhost:8080/order \
   }'
 ```
 
-A chef subscribed to `/topic/kitchen/1` over the WebSocket receives the event immediately.
+**Full checkout (customer flow via Python CheckoutService):**
 
-Useful verified reads through the gateway:
+```bash
+curl -X POST http://localhost:8080/checkout \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <jwt>" \
+  -d '{
+    "customerId": 1,
+    "customerName": "Test User",
+    "restaurantId": 1,
+    "restaurantName": "El Rincón",
+    "items": [
+      {"menuItemId": "abc123", "productName": "Hamburguesa", "quantity": 2, "unitPrice": 15000}
+    ],
+    "paymentMethod": "CARD"
+  }'
+```
+
+**Other useful reads:**
 
 ```bash
 curl -H "Authorization: Bearer <jwt>" http://localhost:8080/restaurant/owner/1
 curl -H "Authorization: Bearer <jwt>" http://localhost:8080/menu/restaurants/1
 curl -H "Authorization: Bearer <jwt>" http://localhost:8080/order/kitchen/1
 curl -H "Authorization: Bearer <jwt>" "http://localhost:8080/order/restaurant/1?status=PENDING"
+curl -H "Authorization: Bearer <jwt>" http://localhost:8080/notification
 ```
 
-If your local `order-db` volume was created before the latest OrderService model changes, restarting the stack is enough; OrderService now patches the legacy local schema on startup.
-
-To stop the backend:
+**Stop the backend:**
 
 ```bash
 docker compose down
 ```
 
+---
+
 ### Frontend — Web Dashboard
 
 ```bash
-# From the project root
 cd frontend/dashboard
-
-# Install dependencies
 npm install
-
-# Start the development server
 npm run dev
 ```
 
-The dashboard will be available at `http://localhost:5173`. The kitchen view is at `/kitchen`.
+Available at `http://localhost:5173`. Kitchen view at `/kitchen`.
+
+---
 
 ### Frontend — Mobile App
 
 ```bash
-# From the project root
 cd frontend/mobile
-
-# Install dependencies
 npm install
-
-# Start Expo
 npx expo start
 ```
 
-Then choose one of the options:
-- Press **i** to open in the iOS Simulator
-- Press **a** to open in the Android Emulator
-- Scan the QR code with **Expo Go** on your phone
+- Press **i** — iOS Simulator
+- Press **a** — Android Emulator
+- Scan QR code with **Expo Go** on your phone
