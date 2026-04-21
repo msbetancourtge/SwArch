@@ -6,7 +6,7 @@ import org.springframework.cloud.gateway.route.builder.RouteLocatorBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.reactive.CorsWebFilter;
+import org.springframework.web.cors.reactive.CorsConfigurationSource;
 import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
 
 import com.clickmunch.APIGateway.security.JwtAuthenticationFilter;
@@ -81,43 +81,59 @@ public class RouteConfig {
         // and any subpath (GET /order/restaurant/1), so root POSTs no longer
         // need a "trailing slash" workaround. The list-form path("/x", "/x/**")
         // is equivalent and kept for clarity per resource family.
+        //
+        // DedupeResponseHeader: downstream services emit their own
+        // Access-Control-Allow-Origin / -Credentials headers, and the gateway's
+        // CORS filter also adds them (needed for preflight). Without dedup,
+        // proxied responses carry the header twice, which the browser rejects.
+        final String dedupHeaders = "Access-Control-Allow-Origin Access-Control-Allow-Credentials";
+        final String dedupStrategy = "RETAIN_UNIQUE";
         return builder.routes()
                 .route("auth", r -> r.path("/auth", "/auth/**")
-                        .filters(f -> f.rewritePath("^/auth(/.*)?$", "/api/auth$1"))
+                        .filters(f -> f
+                                .rewritePath("^/auth(/.*)?$", "/api/auth$1")
+                                .dedupeResponseHeader(dedupHeaders, dedupStrategy))
                         .uri(authServiceUrl))
                 .route("restaurant", r -> r.path("/restaurant", "/restaurant/**")
                         .filters(f -> f
                                 .rewritePath("^/restaurant(/.*)?$", "/api/restaurants$1")
+                                .dedupeResponseHeader(dedupHeaders, dedupStrategy)
                                 .filter(jwtFilter))
                         .uri(restaurantServiceUrl))
                 .route("menu", r -> r.path("/menu", "/menu/**")
                         .filters(f -> f
                                 .rewritePath("^/menu(/.*)?$", "/api/menus$1")
+                                .dedupeResponseHeader(dedupHeaders, dedupStrategy)
                                 .filter(jwtFilter))
                         .uri(menuServiceUrl))
                 .route("order", r -> r.path("/order", "/order/**")
                         .filters(f -> f
                                 .rewritePath("^/order(/.*)?$", "/api/orders$1")
+                                .dedupeResponseHeader(dedupHeaders, dedupStrategy)
                                 .filter(jwtFilter))
                         .uri(orderServiceUrl))
                 .route("reservation", r -> r.path("/reservation", "/reservation/**")
                         .filters(f -> f
                                 .rewritePath("^/reservation(/.*)?$", "/api/reservations$1")
+                                .dedupeResponseHeader(dedupHeaders, dedupStrategy)
                                 .filter(jwtFilter))
                         .uri(reservationServiceUrl))
                 .route("checkout", r -> r.path("/checkout", "/checkout/**")
                         .filters(f -> f
                                 .rewritePath("^/checkout(/.*)?$", "/api/checkout$1")
+                                .dedupeResponseHeader(dedupHeaders, dedupStrategy)
                                 .filter(jwtFilter))
                         .uri(checkoutServiceUrl))
                 .route("rating", r -> r.path("/rating", "/rating/**")
                         .filters(f -> f
                                 .rewritePath("^/rating(/.*)?$", "/api/ratings$1")
+                                .dedupeResponseHeader(dedupHeaders, dedupStrategy)
                                 .filter(jwtFilter))
                         .uri(ratingServiceUrl))
                 .route("notification", r -> r.path("/notification", "/notification/**")
                         .filters(f -> f
                                 .rewritePath("^/notification(/.*)?$", "/api/notifications$1")
+                                .dedupeResponseHeader(dedupHeaders, dedupStrategy)
                                 .filter(jwtFilter))
                         .uri(notificationServiceUrl))
                 // WebSocket route. No HTTP-level JWT filter: browsers can't
@@ -131,8 +147,16 @@ public class RouteConfig {
                 .build();
     }
 
+    /**
+     * CORS at the gateway level: required so the browser's preflight
+     * (OPTIONS) request is answered directly by the gateway. Downstream
+     * services (e.g. AuthService) also emit their own Access-Control-*
+     * headers, so proxied responses would end up with two copies of
+     * {@code Access-Control-Allow-Origin}. The per-route
+     * {@code DedupeResponseHeader} filter above collapses that duplication.
+     */
     @Bean
-    public CorsWebFilter corsWebFilter() {
+    public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration cors = new CorsConfiguration();
         cors.addAllowedOriginPattern("*");
         cors.addAllowedMethod("*");
@@ -141,6 +165,6 @@ public class RouteConfig {
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", cors);
-        return new CorsWebFilter(source);
+        return source;
     }
 }

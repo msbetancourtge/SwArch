@@ -3,8 +3,7 @@ spring:
     name: APIGateway
   logging:
     level:
-      org.springframework.cloud.gateway: DEBUG
-      org.springframework.web.servlet.function: DEBUG
+      org.springframework.cloud.gateway: INFO
 
 jwt:
   secret: "1245789630ClickAndMunchSuperSecretKey1245789630"
