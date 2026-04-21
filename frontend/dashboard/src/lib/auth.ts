@@ -12,11 +12,8 @@ interface ApiResponse<T> {
   data: T | null;
 }
 
-interface LoginResponseData {
-  token: string;
-  username: string;
-  role: string;
-}
+// AuthService returns the JWT as a plain string in data, or legacy { token } object
+type LoginResponseData = string | { token: string };
 
 interface RegisterRequest {
   name: string;
@@ -46,9 +43,22 @@ export function getSession() {
   const token = localStorage.getItem(TOKEN_KEY);
   const userStr = localStorage.getItem(USER_KEY);
   if (!token || !userStr) return null;
+  const jwtParts = token.split('.');
+  // Reject garbage tokens left by old/broken code (must be a 3-part JWT)
+  if (
+    token === 'undefined' ||
+    token === 'null' ||
+    token.startsWith('mock-token-') ||
+    jwtParts.length !== 3 ||
+    jwtParts.some((part) => part.length === 0)
+  ) {
+    clearSession();
+    return null;
+  }
   try {
     return { token, user: JSON.parse(userStr) };
   } catch {
+    clearSession();
     return null;
   }
 }
@@ -122,20 +132,24 @@ export async function login(username: string, password: string): Promise<{ succe
     });
 
     const data: ApiResponse<LoginResponseData> = await res.json();
-    console.log(data.data);
+
     if (!res.ok || !data.data) {
       return { success: false, message: data.message || 'Error al iniciar sesión' };
     }
 
-    const { token, username: user } = data.data;
-    
-    // Decodificar el rol desde el token JWT
+    // AuthService returns either a plain JWT string or { token } object
+    const token = typeof data.data === 'string' ? data.data : data.data.token;
+    if (!token) {
+      return { success: false, message: 'No token received from server' };
+    }
+
     const decodedPayload = decodeJwtPayload(token);
-    const role = decodedPayload?.role || 'USER'; // fallback a 'USER' si no se puede decodificar
-    
+    const role = decodedPayload?.role || 'USER';
+    const user = decodedPayload?.sub || username;
+
     saveSession(token, { username: user, role });
 
-    return { success: true, message: data.message,user: { username: user, role }, token: token };
+    return { success: true, message: data.message, user: { username: user, role }, token };
   } catch (error) {
     console.error('Login error (usando modo desarrollo):', error);
     
@@ -207,20 +221,49 @@ export function decodeJwtPayload(token: string): any | null {
 // Obtener el restaurantId del manager actual
 export async function getOwnerRestaurantId(): Promise<number | null> {
   const session = getSession();
-  if (!session || session.user.role !== 'RESTAURANT_MANAGER') return null;
+  if (!session) return null;
+  const role = session.user.role;
+  if (!['RESTAURANT_MANAGER', 'WAITER', 'CHEF', 'ADMIN'].includes(role)) return null;
 
   const userId = getCurrentUserId();
-  if (!userId) return null;
-
   const apiBase = import.meta.env.VITE_API_URL ?? 'http://localhost:8080';
+
+  // ADMIN can still work with a fallback restaurant to demo operational pages.
+  if (!userId && role !== 'ADMIN') return null;
+
   try {
-    const res = await fetch(`${apiBase}/restaurant/admin/${userId}`, {
-      headers: { Authorization: `Bearer ${session.token}` },
-    });
-    if (!res.ok) return null;
-    const restaurants = await res.json();
-    // MVP: uses first restaurant. Multi-restaurant support requires a switcher.
-    return restaurants[0]?.id ?? null;
+    const auth = { Authorization: `Bearer ${session.token}` };
+    if (userId) {
+      // Most staff roles are associated through restaurant_admins.
+      const adminRes = await fetch(`${apiBase}/restaurant/admin/${userId}`, { headers: auth });
+      if (adminRes.ok) {
+        const adminRestaurants = await adminRes.json();
+        if (Array.isArray(adminRestaurants) && adminRestaurants.length > 0) {
+          return adminRestaurants[0]?.id ?? null;
+        }
+      }
+
+      // Owner fallback (legacy path used by some manager accounts).
+      const ownerRes = await fetch(`${apiBase}/restaurant/owner/${userId}`, { headers: auth });
+      if (ownerRes.ok) {
+        const ownerRestaurants = await ownerRes.json();
+        if (Array.isArray(ownerRestaurants) && ownerRestaurants.length > 0) {
+          return ownerRestaurants[0]?.id ?? null;
+        }
+      }
+    }
+
+    if (role === 'ADMIN') {
+      const cardsRes = await fetch(`${apiBase}/restaurant/cards`, { headers: auth });
+      if (cardsRes.ok) {
+        const cards = await cardsRes.json();
+        if (Array.isArray(cards) && cards.length > 0) {
+          return cards[0]?.id ?? null;
+        }
+      }
+    }
+
+    return null;
   } catch {
     return null;
   }
