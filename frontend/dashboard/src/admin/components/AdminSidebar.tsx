@@ -1,11 +1,12 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { 
   Home, 
   Users, 
   BarChart3, 
   Settings, 
   FileText, 
-  ShoppingCart, 
+  ShoppingCart,
+  ChefHat,
   Bell, 
   HelpCircle,
   ChevronLeft,
@@ -16,7 +17,6 @@ import {
 } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { getCurrentUserRole } from '@/lib/auth';
-import { useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface SidebarProps {
@@ -30,12 +30,16 @@ export const AdminSidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) 
   const navigate = useNavigate();
   const { user, logout } = useAuth();
 
-  // Definir todos los items del menú
+  // ✅ MENÚ COMPLETO CON ROLES + ITEMS NUEVOS
   const allMenuItems = [
     { icon: Home, label: 'Dashboard', to: '/', roles: ['ADMIN', 'RESTAURANT_MANAGER'] },
     { icon: BarChart3, label: 'Productos', to: '/products', roles: ['ADMIN', 'RESTAURANT_MANAGER'] },
     { icon: Users, label: 'Usuarios', to: '/users', roles: ['ADMIN'] },
     { icon: ShoppingCart, label: 'Ordenes', to: '/orders', roles: ['ADMIN', 'RESTAURANT_MANAGER'] },
+
+    // 🔥 NUEVO DE MAIN
+    { icon: ChefHat, label: 'Cocina', to: '/kitchen', roles: ['ADMIN', 'RESTAURANT_MANAGER'] },
+
     { icon: FileText, label: 'Reservas', to: '/reservations', roles: ['ADMIN', 'RESTAURANT_MANAGER'] },
     { icon: FileText, label: 'Restaurantes', to: '/restaurants', roles: ['ADMIN'] },
     { icon: FileText, label: 'Reportes', to: '/reports', roles: ['ADMIN', 'RESTAURANT_MANAGER'] },
@@ -43,21 +47,19 @@ export const AdminSidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) 
     { icon: Bell, label: 'Notificaciones', to: '/notifications', roles: ['ADMIN', 'RESTAURANT_MANAGER'] },
     { icon: Settings, label: 'Ajustes', to: '/settings', roles: ['ADMIN'] },
     { icon: HelpCircle, label: 'Ayuda', to: '/help', roles: ['ADMIN'] },
+
     { icon: Table, label: 'Mesas', to: '/tables', roles: ['RESTAURANT_MANAGER'] },
     { icon: Calendar, label: 'Horarios', to: '/hours', roles: ['RESTAURANT_MANAGER'] },
   ];
 
-  // Filtrar items del menú según el rol del usuario
+  // ✅ FILTRO POR ROL
   const menuItems = useMemo(() => {
     const userRole = getCurrentUserRole();
     if (!userRole) return [];
-    
     return allMenuItems.filter(item => item.roles.includes(userRole));
   }, []);
 
-  const isActiveRoute = ( to: string ) => {
-    return pathname === to;
-  }
+  const isActiveRoute = (to: string) => pathname === to;
 
   const handleLogout = () => {
     logout();
@@ -68,6 +70,7 @@ export const AdminSidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) 
     <div className={`bg-white border-r border-gray-200 transition-all duration-300 ease-in-out ${
       isCollapsed ? 'w-18' : 'w-64'
     } flex flex-col`}>
+
       {/* Header */}
       <div className="p-4 border-b border-gray-200 flex items-center justify-between h-18">
         {!isCollapsed && (
@@ -89,9 +92,9 @@ export const AdminSidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) 
             return (
               <li key={index}>
                 <Link
-                  to={ item.to || '/admin'}
+                  to={item.to}
                   className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition-all duration-200 group ${
-                    isActiveRoute(item.to || '/xxxx')
+                    isActiveRoute(item.to)
                       ? 'bg-blue-50 text-blue-600 border-r-2 border-blue-600'
                       : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                   }`}
@@ -115,10 +118,15 @@ export const AdminSidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) 
               {(user?.username?.slice(0, 2) ?? 'JD').toUpperCase()}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">{user?.username ?? 'Usuario'}</p>
-              <p className="text-xs text-gray-500 truncate">{user?.role ?? 'Rol no disponible'}</p>
+              <p className="text-sm font-medium text-gray-900 truncate">
+                {user?.username ?? 'Usuario'}
+              </p>
+              <p className="text-xs text-gray-500 truncate">
+                {user?.role ?? 'Rol no disponible'}
+              </p>
             </div>
           </div>
+
           <button
             type="button"
             onClick={handleLogout}

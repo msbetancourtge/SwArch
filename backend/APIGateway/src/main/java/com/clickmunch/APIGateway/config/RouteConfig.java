@@ -17,6 +17,23 @@ import com.clickmunch.APIGateway.security.JwtAuthenticationFilter;
 import com.clickmunch.APIGateway.security.JwtTokenUtil;
 
 
+/**
+ * API Gateway routing.
+ *
+ * All REST traffic is unified under this gateway (port 8080) with JWT
+ * enforcement for protected services.
+ *
+ * WebSocket traffic (OrderService kitchen events) is NOT routed here.
+ * Spring Cloud Gateway Server MVC (servlet) does not transparently proxy
+ * the HTTP Upgrade handshake; only the reactive flavor does. Migrating this
+ * gateway to reactive is out of scope for the order-service feature, so the
+ * realtime channel follows the common "REST gateway + separate realtime
+ * channel" pattern used in production (AWS API Gateway + AppSync, nginx with
+ * split paths, etc.). Clients connect directly to:
+ *     ws://localhost:8085/ws/kitchen
+ * If a single edge is required later, add an nginx/traefik sidecar in front
+ * that terminates both HTTP and WebSocket on one port.
+ */
 @Configuration
 public class RouteConfig {
 
@@ -48,54 +65,71 @@ public class RouteConfig {
     public RouterFunction<ServerResponse> routes(JwtTokenUtil jwtTokenUtil) {
         JwtAuthenticationFilter jwtAuthenticationFilter = new JwtAuthenticationFilter(jwtTokenUtil);
 
+        // Rewrite pattern "^/<prefix>(/.*)?$" covers both the bare prefix
+        // (POST /order  -> /api/orders) and any subpath
+        // (GET /order/restaurant/1 -> /api/orders/restaurant/1). The previous
+        // pattern required a mandatory "/" after the prefix, which broke root
+        // POSTs through the gateway.
         RouterFunction<ServerResponse> auth = route("auth")
                 .route(path("/auth/**"), http())
                 .before(uri(authServiceUrl))
-                .before(rewritePath("/auth/(?<segment>.*)", "/api/auth/${segment}"))
+                .before(rewritePath("^/auth(/.*)?$", "/api/auth$1"))
                 .build();
         RouterFunction<ServerResponse> restaurant = route("restaurant")
                 .route(path("/restaurant/**"), http())
                 .before(uri(restaurantServiceUrl))
-                .before(rewritePath("/restaurant/(?<segment>.*)", "/api/restaurants/${segment}"))
+                .before(rewritePath("^/restaurant(/.*)?$", "/api/restaurants$1"))
                 .filter(jwtAuthenticationFilter)
                 .build();
         RouterFunction<ServerResponse> menu = route("menu")
                 .route(path("/menu/**"), http())
                 .before(uri(menuServiceUrl))
-                .before(rewritePath("/menu/(?<segment>.*)", "/api/menus/${segment}"))
+                .before(rewritePath("^/menu(/.*)?$", "/api/menus$1"))
                 .filter(jwtAuthenticationFilter)
                 .build();
         RouterFunction<ServerResponse> order = route("order")
                 .route(path("/order/**"), http())
                 .before(uri(orderServiceUrl))
-                .before(rewritePath("/order/(?<segment>.*)", "/api/orders/${segment}"))
+                .before(rewritePath("^/order(/.*)?$", "/api/orders$1"))
                 .filter(jwtAuthenticationFilter)
                 .build();
+
         RouterFunction<ServerResponse> reservation = route("reservation")
-                .route(path("/reservation/**"), http())
-                .before(uri(reservationServiceUrl))
-                .before(rewritePath("/reservation/(?<segment>.*)", "/api/reservations/${segment}"))
-                .filter(jwtAuthenticationFilter)
-                .build();
+            .route(path("/reservation/**"), http())
+            .before(uri(reservationServiceUrl))
+            .before(rewritePath("^/reservation(/.*)?$", "/api/reservations$1"))
+            .filter(jwtAuthenticationFilter)
+            .build();
+
         RouterFunction<ServerResponse> checkout = route("checkout")
-                .route(path("/checkout/**"), http())
-                .before(uri(checkoutServiceUrl))
-                .before(rewritePath("/checkout/(?<segment>.*)", "/api/checkout/${segment}"))
-                .filter(jwtAuthenticationFilter)
-                .build();
+            .route(path("/checkout/**"), http())
+            .before(uri(checkoutServiceUrl))
+            .before(rewritePath("^/checkout(/.*)?$", "/api/checkout$1"))
+            .filter(jwtAuthenticationFilter)
+            .build();
+
         RouterFunction<ServerResponse> rating = route("rating")
-                .route(path("/rating/**"), http())
-                .before(uri(ratingServiceUrl))
-                .before(rewritePath("/rating/(?<segment>.*)", "/api/ratings/${segment}"))
-                .filter(jwtAuthenticationFilter)
-                .build();
+            .route(path("/rating/**"), http())
+            .before(uri(ratingServiceUrl))
+            .before(rewritePath("^/rating(/.*)?$", "/api/ratings$1"))
+            .filter(jwtAuthenticationFilter)
+            .build();
+
         RouterFunction<ServerResponse> notification = route("notification")
-                .route(path("/notification/**"), http())
-                .before(uri(notificationServiceUrl))
-                .before(rewritePath("/notification/(?<segment>.*)", "/api/notifications/${segment}"))
-                .filter(jwtAuthenticationFilter)
-                .build();
-        return auth.and(restaurant).and(menu).and(order).and(reservation).and(checkout).and(rating).and(notification);
+            .route(path("/notification/**"), http())
+            .before(uri(notificationServiceUrl))
+            .before(rewritePath("^/notification(/.*)?$", "/api/notifications$1"))
+            .filter(jwtAuthenticationFilter)
+            .build();
+
+        return auth
+            .and(restaurant)
+            .and(menu)
+            .and(order)
+            .and(reservation)
+            .and(checkout)
+            .and(rating)
+            .and(notification);
     }
 
     @Bean
@@ -105,7 +139,7 @@ public class RouteConfig {
             public void addCorsMappings(CorsRegistry registry) {
                 registry.addMapping("/**")
                         .allowedOriginPatterns("*")
-                        .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+                        .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
                         .allowedHeaders("*")
                         .allowCredentials(true);
             }

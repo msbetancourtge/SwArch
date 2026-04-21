@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode, useMemo } from 'react';
+import { createContext, useContext, useState, useEffect, type ReactNode, useMemo } from 'react';
 import * as auth from '@/lib/auth';
 import { decodeJwtPayload } from '@/lib/auth';
 
@@ -22,17 +22,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [restaurantId, setRestaurantId] = useState<number | null>(null);
+
+  // 🔥 Manejo central del usuario desde JWT
   const handleUserSession = async (token: string) => {
     const decoded = decodeJwtPayload(token);
-    const mappedUser = {
-      id: decoded.userId,
+
+    const mappedUser: User = {
       username: decoded.sub,
       role: decoded.role,
-      name: decoded.name
     };
+
     console.log("👤 [Auth] Usuario normalizado:", mappedUser);
     setUser(mappedUser);
-    
+
     if (mappedUser.role === 'RESTAURANT_MANAGER') {
       try {
         const id = await auth.getOwnerRestaurantId();
@@ -43,23 +45,54 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
   };
+
+  // 🔍 Verificar sesión al cargar (mezcla de ambos enfoques)
   useEffect(() => {
-    const session = auth.getSession();
-    if (session && session.token) {
-      console.log("🔍 [Auth] Sesión encontrada en localStorage:", session);
-      handleUserSession(session.token).finally(() => setIsLoading(false));
-    } else {
-      setIsLoading(false);
-    }
+    const checkAuth = async () => {
+      try {
+        const session = auth.getSession();
+
+        if (session?.token) {
+          console.log("🔍 [Auth] Sesión encontrada:", session);
+          await handleUserSession(session.token);
+        } else if (session?.user) {
+          // fallback estilo main
+          setUser(session.user);
+
+          if (session.user.role === 'RESTAURANT_MANAGER') {
+            const id = await auth.getOwnerRestaurantId();
+            setRestaurantId(id);
+          }
+        }
+
+      } catch (error) {
+        console.error('❌ [Auth] Error verificando autenticación:', error);
+        auth.clearSession();
+        setUser(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    checkAuth();
   }, []);
 
   const login = async (username: string, password: string) => {
     console.log("🔑 [Auth] Intentando login para:", username);
+
     const result = await auth.login(username, password);
-    
+
     if (result.success && result.token) {
       await handleUserSession(result.token);
-      console.log("✅ [Auth] Login exitoso para:", username);
+      console.log("✅ [Auth] Login exitoso");
+    } else if (result.success && result.user) {
+      // fallback estilo main
+      setUser(result.user);
+
+      if (result.user.role === 'RESTAURANT_MANAGER') {
+        const id = await auth.getOwnerRestaurantId();
+        setRestaurantId(id);
+      }
     } else {
       console.error("❌ [Auth] Fallo en login:", result.message);
       throw new Error(result.message || 'Error al iniciar sesión');
@@ -91,7 +124,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error('useAuth debe usarse dentro de un AuthProvider.');
   }
   return context;

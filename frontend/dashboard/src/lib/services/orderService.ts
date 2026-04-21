@@ -1,8 +1,8 @@
-﻿import type { Order, OrderStatus } from "@/lib/types";
+import type { Order, OrderStatus } from "@/lib/types";
 
 const API = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
-// 🔐 Si usas auth, puedes adaptar esto
+// 🔐 Headers con auth
 const getHeaders = () => {
   const token = localStorage.getItem("auth_token");
   return {
@@ -61,9 +61,13 @@ export const isTableFree = (tableId: number, orders: Order[]) => {
   );
 };
 
+// =======================
+// 🚀 SERVICE REAL
+// =======================
+
 export const orderService = {
-  
-  // 📋 Obtener todas las órdenes del restaurante
+
+  // 📋 Obtener órdenes por restaurante
   async getByRestaurant(restaurantId: number): Promise<Order[]> {
     const res = await fetch(`${API}/order/restaurant/${restaurantId}`, {
       headers: getHeaders(),
@@ -73,13 +77,13 @@ export const orderService = {
     return res.json();
   },
 
-  // 🔥 Obtener solo órdenes activas (helper frontend)
+  // 🔥 Solo órdenes activas
   async getActive(restaurantId: number): Promise<Order[]> {
     const data = await this.getByRestaurant(restaurantId);
     return data.filter((o) => ACTIVE_STATUS.includes(o.status));
   },
 
-  // 🔄 Cambiar estado de la orden
+  // 🔄 Actualizar estado
   async updateStatus(orderId: number, status: OrderStatus): Promise<void> {
     const res = await fetch(`${API}/order/${orderId}/status`, {
       method: "PUT",
@@ -93,12 +97,11 @@ export const orderService = {
     }
   },
 
-  // 🍽️ Asignar mesa (con validación previa opcional)
+  // 🍽️ Asignar mesa
   async assignTable(orderId: number, tableId: number): Promise<void> {
     const res = await fetch(`${API}/order/${orderId}/assign-table?tableId=${tableId}`, {
       method: "PUT",
       headers: getHeaders(),
-      
     });
 
     if (!res.ok) {
@@ -107,7 +110,7 @@ export const orderService = {
     }
   },
 
-  // 🔍 Obtener una orden por ID
+  // 🔍 Obtener por ID
   async getById(orderId: number): Promise<Order | null> {
     const res = await fetch(`${API}/order/${orderId}`, {
       headers: getHeaders(),
@@ -117,21 +120,23 @@ export const orderService = {
     return res.json();
   },
 
-  // 🧪 Debug helper (opcional)
+  // 📜 Historial
+  async getHistory(restaurantId: number): Promise<Order[]> {
+    const res = await fetch(`${API}/order/restaurant/${restaurantId}`, {
+      headers: getHeaders(),
+    });
+
+    if (!res.ok) throw new Error("Error cargando historial");
+
+    const data: Order[] = await res.json();
+
+    return data.filter(
+      (o) => o.status === "Delivered" || o.status === "Cancelled"
+    );
+  },
+
+  // 🧪 Debug
   logOrder(order: Order) {
     console.log("📦 ORDER:", order);
-  },
-  async getHistory(restaurantId: number): Promise<Order[]> {
-  const res = await fetch(`${API}/order/restaurant/${restaurantId}`, {
-    headers: getHeaders(),
-  });
-
-  if (!res.ok) throw new Error("Error cargando historial");
-
-  const data: Order[] = await res.json();
-
-  return data.filter(
-    (o) => o.status === "Delivered" || o.status === "Cancelled"
-  );
-}
+  }
 };

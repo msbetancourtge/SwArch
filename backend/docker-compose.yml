@@ -62,48 +62,6 @@ services:
     networks:
       - appnet
 
-  order-db:
-    image: postgres:16
-    container_name: order-db
-    restart: always
-    environment:
-      POSTGRES_DB: order_db
-      POSTGRES_USER: mike
-      POSTGRES_PASSWORD: secret
-    ports:
-      - "5436:5432"
-    volumes:
-      - order_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U mike -d order_db"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 15s
-    networks:
-      - appnet
-
-  reservation-db:
-    image: postgres:16
-    container_name: reservation-db
-    restart: always
-    environment:
-      POSTGRES_DB: reservation_db
-      POSTGRES_USER: mike
-      POSTGRES_PASSWORD: secret
-    ports:
-      - "5437:5432"
-    volumes:
-      - reservation_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U mike -d reservation_db"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 15s
-    networks:
-      - appnet
-
   menu-db:
     image: mongo:7
     container_name: menu-db
@@ -125,27 +83,6 @@ services:
     networks:
       - appnet
 
-  rating-db:
-    image: postgres:16
-    container_name: rating-db
-    restart: always
-    environment:
-      POSTGRES_DB: rating_db
-      POSTGRES_USER: mike
-      POSTGRES_PASSWORD: secret
-    ports:
-      - "5438:5432"
-    volumes:
-      - rating_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U mike -d rating_db"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 15s
-    networks:
-      - appnet
-
   rabbitmq:
     image: rabbitmq:3-management
     container_name: rabbitmq
@@ -157,32 +94,11 @@ services:
       - "5672:5672"
       - "15672:15672"
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 15s
-    networks:
-      - appnet
-
-  notification-db:
-    image: postgres:16
-    container_name: notification-db
-    restart: always
-    environment:
-      POSTGRES_DB: notification_db
-      POSTGRES_USER: mike
-      POSTGRES_PASSWORD: secret
-    ports:
-      - "5439:5432"
-    volumes:
-      - notification_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U mike -d notification_db"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 15s
+      start_period: 20s
     networks:
       - appnet
 
@@ -294,6 +210,90 @@ services:
     networks:
       - appnet
 
+  order-db:
+    image: postgres:16
+    container_name: order-db
+    restart: always
+    environment:
+      POSTGRES_DB: order_db
+      POSTGRES_USER: mike
+      POSTGRES_PASSWORD: secret
+    ports:
+      - "5436:5432"
+    volumes:
+      - order_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mike -d order_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - appnet
+
+  reservation-db:
+    image: postgres:16
+    container_name: reservation-db
+    restart: always
+    environment:
+      POSTGRES_DB: reservation_db
+      POSTGRES_USER: mike
+      POSTGRES_PASSWORD: secret
+    ports:
+      - "5437:5432"
+    volumes:
+      - reservation_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mike -d reservation_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - appnet
+
+  rating-db:
+    image: postgres:16
+    container_name: rating-db
+    restart: always
+    environment:
+      POSTGRES_DB: rating_db
+      POSTGRES_USER: mike
+      POSTGRES_PASSWORD: secret
+    ports:
+      - "5438:5432"
+    volumes:
+      - rating_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mike -d rating_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - appnet
+
+  notification-db:
+    image: postgres:16
+    container_name: notification-db
+    restart: always
+    environment:
+      POSTGRES_DB: notification_db
+      POSTGRES_USER: mike
+      POSTGRES_PASSWORD: secret
+    ports:
+      - "5439:5432"
+    volumes:
+      - notification_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mike -d notification_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - appnet
+
   orderservice:
     build: ./OrderService
     container_name: orderservice
@@ -324,34 +324,17 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://reservation-db:5432/reservation_db
       SPRING_DATASOURCE_USERNAME: mike
       SPRING_DATASOURCE_PASSWORD: secret
-      RESTAURANT_SERVICE_URL: http://restaurantservice:8082
       SPRING_RABBITMQ_HOST: rabbitmq
       SPRING_RABBITMQ_PORT: 5672
       SPRING_RABBITMQ_USERNAME: mike
       SPRING_RABBITMQ_PASSWORD: secret
+      RESTAURANT_SERVICE_URL: http://restaurantservice:8082
     depends_on:
       reservation-db:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
-    networks:
-      - appnet
-
-  checkoutservice:
-    build: ./CheckoutService
-    container_name: checkoutservice
-    ports:
-      - "8089:8089"
-    environment:
-      MENU_SERVICE_URL: http://menuservice:8084
-      ORDER_SERVICE_URL: http://orderservice:8085
-      RESERVATION_SERVICE_URL: http://reservationservice:8086
-    depends_on:
-      menuservice:
-        condition: service_healthy
-      orderservice:
-        condition: service_healthy
-      reservationservice:
+      restaurantservice:
         condition: service_healthy
     networks:
       - appnet
@@ -388,6 +371,25 @@ services:
       notification-db:
         condition: service_healthy
       rabbitmq:
+        condition: service_healthy
+    networks:
+      - appnet
+
+  checkoutservice:
+    build: ./CheckoutService
+    container_name: checkoutservice
+    ports:
+      - "8089:8089"
+    environment:
+      MENU_SERVICE_URL: http://menuservice:8084
+      ORDER_SERVICE_URL: http://orderservice:8085
+      RESERVATION_SERVICE_URL: http://reservationservice:8086
+    depends_on:
+      menuservice:
+        condition: service_healthy
+      orderservice:
+        condition: service_healthy
+      reservationservice:
         condition: service_healthy
     networks:
       - appnet

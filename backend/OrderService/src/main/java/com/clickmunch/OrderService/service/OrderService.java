@@ -1,338 +1,153 @@
 package com.clickmunch.OrderService.service;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.clickmunch.OrderService.dto.AddItemsRequest;
+import com.clickmunch.OrderService.dto.ApiResponse;
 import com.clickmunch.OrderService.dto.CreateOrderRequest;
 import com.clickmunch.OrderService.dto.OrderItemResponse;
 import com.clickmunch.OrderService.dto.OrderResponse;
-import com.clickmunch.OrderService.dto.TipRequest;
-import com.clickmunch.OrderService.dto.UpdateOrderRequest;
 import com.clickmunch.OrderService.dto.UpdateStatusRequest;
-import com.clickmunch.OrderService.dto.WaiterCallRequest;
-import com.clickmunch.OrderService.dto.WaiterCallResponse;
 import com.clickmunch.OrderService.entity.Order;
-import com.clickmunch.OrderService.entity.OrderChannel;
 import com.clickmunch.OrderService.entity.OrderItem;
 import com.clickmunch.OrderService.entity.OrderStatus;
-import com.clickmunch.OrderService.entity.WaiterCall;
-import com.clickmunch.OrderService.event.OrderEvent;
-import com.clickmunch.OrderService.event.OrderEventPublisher;
+import com.clickmunch.OrderService.realtime.KitchenEventsPublisher;
 import com.clickmunch.OrderService.repository.OrderItemRepository;
 import com.clickmunch.OrderService.repository.OrderRepository;
-import com.clickmunch.OrderService.repository.WaiterCallRepository;
-
-import lombok.RequiredArgsConstructor;
 
 @Service
-@RequiredArgsConstructor
 public class OrderService {
+
+    private static final Map<OrderStatus, Set<OrderStatus>> TRANSITIONS = Map.of(
+            OrderStatus.PENDING,        Set.of(OrderStatus.IN_PREPARATION, OrderStatus.CANCELLED),
+            OrderStatus.IN_PREPARATION, Set.of(OrderStatus.READY, OrderStatus.CANCELLED),
+            OrderStatus.READY,          Set.of(OrderStatus.DELIVERED),
+            OrderStatus.DELIVERED,      Set.of(),
+            OrderStatus.CANCELLED,      Set.of()
+    );
 
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
-    private final WaiterCallRepository waiterCallRepository;
-    private final OrderEventPublisher eventPublisher;
+    private final KitchenEventsPublisher events;
+
+    public OrderService(OrderRepository orderRepository,
+                        OrderItemRepository orderItemRepository,
+                        KitchenEventsPublisher events) {
+        this.orderRepository = orderRepository;
+        this.orderItemRepository = orderItemRepository;
+        this.events = events;
+    }
 
     @Transactional
-    public OrderResponse createOrder(CreateOrderRequest request) {
-        BigDecimal total = request.items().stream()
-                .map(item -> item.unitPrice().multiply(BigDecimal.valueOf(item.quantity())))
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    public ApiResponse<OrderResponse> createOrder(CreateOrderRequest request) {
+        Order order = new Order();
+        order.setRestaurantId(request.restaurantId());
+        order.setTableNumber(request.tableNumber());
+        order.setStatus(OrderStatus.PENDING);
+        order.setNotes(request.notes());
+        order.setCreatedAt(LocalDateTime.now());
+        order.setUpdatedAt(LocalDateTime.now());
 
-        OrderChannel channel = parseChannel(request.channel());
+        Order saved = orderRepository.save(order);
 
-        Order order = Order.builder()
-                .customerId(request.customerId())
-                .customerName(request.customerName())
-                .restaurantId(request.restaurantId())
-                .restaurantName(request.restaurantName())
-                .status(OrderStatus.Preparing)
-                .channel(channel)
-                .notes(request.notes())
-                .eta(request.eta())
-                .total(total)
-                .tableId(request.tableId())
-                .waiterId(request.waiterId())
-                .preparationMinutes(request.preparationMinutes())
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
-                .build();
-
-        Order savedOrder = orderRepository.save(order);
-
-        List<OrderItem> items = request.items().stream()
-                .map(itemReq -> OrderItem.builder()
-                        .orderId(savedOrder.getId())
-                        .menuItemId(itemReq.menuItemId())
-                        .productName(itemReq.productName())
-                        .quantity(itemReq.quantity())
-                        .unitPrice(itemReq.unitPrice())
-                        .subtotal(itemReq.unitPrice().multiply(BigDecimal.valueOf(itemReq.quantity())))
-                        .build())
-                .toList();
+        List<OrderItem> items = request.items().stream().map(itemReq -> {
+            OrderItem item = new OrderItem();
+            item.setOrderId(saved.getId());
+            item.setItemName(itemReq.itemName());
+            item.setNotes(itemReq.notes());
+            return item;
+        }).toList();
 
         List<OrderItem> savedItems = orderItemRepository.saveAll(items);
 
-        // Publish async event for notifications
-        eventPublisher.publishOrderCreated(OrderEvent.created(
-                savedOrder.getId(), savedOrder.getCustomerId(), savedOrder.getCustomerName(),
-                savedOrder.getRestaurantId(), savedOrder.getRestaurantName(), total));
-
-        return toResponse(savedOrder, savedItems);
+        OrderResponse response = toResponse(saved, savedItems);
+        events.publishCreated(response);
+        return new ApiResponse<>("Order created successfully", response);
     }
 
-    public OrderResponse getOrderById(Long id) {
+    public ApiResponse<OrderResponse> getOrder(Long id) {
         Order order = orderRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Order not found: " + id));
+                .orElseThrow(() -> new RuntimeException("Order not found"));
         List<OrderItem> items = orderItemRepository.findByOrderId(id);
-        return toResponse(order, items);
+        return new ApiResponse<>("Order retrieved", toResponse(order, items));
     }
 
-    public List<OrderResponse> getAllOrders() {
-        List<Order> orders = orderRepository.findAllOrderedByDate();
-        return orders.stream().map(order -> {
-            List<OrderItem> items = orderItemRepository.findByOrderId(order.getId());
-            return toResponse(order, items);
-        }).toList();
+    public ApiResponse<List<OrderResponse>> getKitchenOrders(Long restaurantId) {
+        List<Order> orders = orderRepository.findActiveByRestaurantId(restaurantId);
+        return new ApiResponse<>("Active kitchen orders", toResponseList(orders));
     }
 
-    public List<OrderResponse> getOrdersByRestaurantId(Long restaurantId) {
-        List<Order> orders = orderRepository.findByRestaurantId(restaurantId);
-        return orders.stream().map(order -> {
-            List<OrderItem> items = orderItemRepository.findByOrderId(order.getId());
-            return toResponse(order, items);
-        }).toList();
-    }
-
-    public List<OrderResponse> getOrdersByCustomerId(Long customerId) {
-        List<Order> orders = orderRepository.findByCustomerId(customerId);
-        return orders.stream().map(order -> {
-            List<OrderItem> items = orderItemRepository.findByOrderId(order.getId());
-            return toResponse(order, items);
-        }).toList();
-    }
-
-    public List<OrderResponse> getOrdersByRestaurantAndStatus(Long restaurantId, String status) {
-        List<Order> orders = orderRepository.findByRestaurantIdAndStatus(restaurantId, status);
-        return orders.stream().map(order -> {
-            List<OrderItem> items = orderItemRepository.findByOrderId(order.getId());
-            return toResponse(order, items);
-        }).toList();
-    }
-
-    public List<OrderResponse> getOrdersByWaiterId(Long waiterId) {
-        List<Order> orders = orderRepository.findByWaiterId(waiterId);
-        return orders.stream().map(order -> {
-            List<OrderItem> items = orderItemRepository.findByOrderId(order.getId());
-            return toResponse(order, items);
-        }).toList();
-    }
-
-    @Transactional
-    public OrderResponse updateOrder(Long id, UpdateOrderRequest request) {
-        Order order = orderRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Order not found: " + id));
-
-        if (request.notes() != null) {
-            order.setNotes(request.notes());
+    public ApiResponse<List<OrderResponse>> getRestaurantOrders(Long restaurantId, String status) {
+        List<Order> orders;
+        if (status != null && !status.isBlank()) {
+            OrderStatus.valueOf(status.toUpperCase());
+            orders = orderRepository.findByRestaurantIdAndStatus(restaurantId, status.toUpperCase());
+        } else {
+            orders = orderRepository.findByRestaurantId(restaurantId);
         }
-        if (request.eta() != null) {
-            order.setEta(request.eta());
-        }
-        order.setUpdatedAt(LocalDateTime.now());
-
-        Order updated = orderRepository.save(order);
-        List<OrderItem> items = orderItemRepository.findByOrderId(id);
-        return toResponse(updated, items);
+        return new ApiResponse<>("Restaurant orders", toResponseList(orders));
     }
 
-    @Transactional
-    public OrderResponse updateOrderStatus(Long id, UpdateStatusRequest request) {
+    public ApiResponse<OrderResponse> updateStatus(Long id, UpdateStatusRequest request) {
         Order order = orderRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Order not found: " + id));
+                .orElseThrow(() -> new RuntimeException("Order not found"));
 
-        OrderStatus newStatus = OrderStatus.valueOf(request.status());
-        String previousStatus = order.getStatus().name();
+        OrderStatus newStatus;
+        try {
+            newStatus = OrderStatus.valueOf(request.status().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new RuntimeException("Invalid status: " + request.status());
+        }
+
+        Set<OrderStatus> allowed = TRANSITIONS.get(order.getStatus());
+        if (allowed == null || !allowed.contains(newStatus)) {
+            throw new RuntimeException(
+                    "Invalid transition from " + order.getStatus() + " to " + newStatus);
+        }
+
         order.setStatus(newStatus);
         order.setUpdatedAt(LocalDateTime.now());
-
         Order updated = orderRepository.save(order);
+
         List<OrderItem> items = orderItemRepository.findByOrderId(id);
-
-        // Publish async event for notifications
-        eventPublisher.publishOrderStatusChanged(OrderEvent.statusChanged(
-                updated.getId(), updated.getCustomerId(), updated.getCustomerName(),
-                updated.getRestaurantId(), updated.getRestaurantName(),
-                newStatus.name(), previousStatus, updated.getTotal()));
-
-        return toResponse(updated, items);
+        OrderResponse response = toResponse(updated, items);
+        events.publishStatusChanged(response);
+        return new ApiResponse<>("Order status updated to " + newStatus, response);
     }
 
-    @Transactional
-    public OrderResponse addItemsToOrder(Long id, AddItemsRequest request) {
-        Order order = orderRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Order not found: " + id));
+    private List<OrderResponse> toResponseList(List<Order> orders) {
+        if (orders.isEmpty()) return List.of();
 
-        List<OrderItem> newItems = request.items().stream()
-                .map(itemReq -> OrderItem.builder()
-                        .orderId(id)
-                        .menuItemId(itemReq.menuItemId())
-                        .productName(itemReq.productName())
-                        .quantity(itemReq.quantity())
-                        .unitPrice(itemReq.unitPrice())
-                        .subtotal(itemReq.unitPrice().multiply(BigDecimal.valueOf(itemReq.quantity())))
-                        .build())
+        List<Long> orderIds = orders.stream().map(Order::getId).toList();
+        List<OrderItem> allItems = orderItemRepository.findByOrderIdIn(orderIds);
+        Map<Long, List<OrderItem>> itemsByOrder = allItems.stream()
+                .collect(Collectors.groupingBy(OrderItem::getOrderId));
+
+        return orders.stream()
+                .map(o -> toResponse(o, itemsByOrder.getOrDefault(o.getId(), List.of())))
                 .toList();
-
-        orderItemRepository.saveAll(newItems);
-
-        // Recalculate total
-        List<OrderItem> allItems = orderItemRepository.findByOrderId(id);
-        BigDecimal newTotal = allItems.stream()
-                .map(OrderItem::getSubtotal)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        order.setTotal(newTotal);
-        order.setUpdatedAt(LocalDateTime.now());
-
-        Order updated = orderRepository.save(order);
-        return toResponse(updated, allItems);
-    }
-
-    @Transactional
-    public OrderResponse assignWaiter(Long orderId, Long waiterId) {
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new IllegalArgumentException("Order not found: " + orderId));
-        order.setWaiterId(waiterId);
-        order.setUpdatedAt(LocalDateTime.now());
-        Order updated = orderRepository.save(order);
-        List<OrderItem> items = orderItemRepository.findByOrderId(orderId);
-        return toResponse(updated, items);
-    }
-
-    @Transactional
-    public OrderResponse assignTable(Long orderId, Long tableId) {
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new IllegalArgumentException("Order not found: " + orderId));
-        order.setTableId(tableId);
-        order.setUpdatedAt(LocalDateTime.now());
-        Order updated = orderRepository.save(order);
-        List<OrderItem> items = orderItemRepository.findByOrderId(orderId);
-        return toResponse(updated, items);
-    }
-
-    @Transactional
-    public OrderResponse addTip(Long orderId, TipRequest request) {
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new IllegalArgumentException("Order not found: " + orderId));
-        order.setTipAmount(request.tipAmount());
-        if (request.waiterComment() != null) {
-            order.setWaiterComment(request.waiterComment());
-        }
-        order.setUpdatedAt(LocalDateTime.now());
-        Order updated = orderRepository.save(order);
-        List<OrderItem> items = orderItemRepository.findByOrderId(orderId);
-        return toResponse(updated, items);
-    }
-
-    // ─── Waiter Calls ───
-
-    @Transactional
-    public WaiterCallResponse createWaiterCall(WaiterCallRequest request) {
-        WaiterCall call = WaiterCall.builder()
-                .orderId(request.orderId())
-                .tableId(request.tableId())
-                .restaurantId(request.restaurantId())
-                .status("PENDING")
-                .message(request.message())
-                .createdAt(LocalDateTime.now())
-                .build();
-        WaiterCall saved = waiterCallRepository.save(call);
-        return toCallResponse(saved);
-    }
-
-    public List<WaiterCallResponse> getPendingWaiterCalls(Long restaurantId) {
-        return waiterCallRepository.findPendingByRestaurantId(restaurantId).stream()
-                .map(this::toCallResponse).toList();
-    }
-
-    @Transactional
-    public WaiterCallResponse resolveWaiterCall(Long callId) {
-        WaiterCall call = waiterCallRepository.findById(callId)
-                .orElseThrow(() -> new IllegalArgumentException("Waiter call not found: " + callId));
-        call.setStatus("RESOLVED");
-        call.setResolvedAt(LocalDateTime.now());
-        return toCallResponse(waiterCallRepository.save(call));
-    }
-
-    @Transactional
-    public WaiterCallResponse acknowledgeWaiterCall(Long callId) {
-        WaiterCall call = waiterCallRepository.findById(callId)
-                .orElseThrow(() -> new IllegalArgumentException("Waiter call not found: " + callId));
-        call.setStatus("ACKNOWLEDGED");
-        return toCallResponse(waiterCallRepository.save(call));
-    }
-
-    @Transactional
-    public void deleteOrder(Long id) {
-        if (!orderRepository.existsById(id)) {
-            throw new IllegalArgumentException("Order not found: " + id);
-        }
-        orderItemRepository.deleteByOrderId(id);
-        orderRepository.deleteById(id);
     }
 
     private OrderResponse toResponse(Order order, List<OrderItem> items) {
         List<OrderItemResponse> itemResponses = items.stream()
-                .map(item -> new OrderItemResponse(
-                        item.getId(),
-                        item.getMenuItemId(),
-                        item.getProductName(),
-                        item.getQuantity(),
-                        item.getUnitPrice(),
-                        item.getSubtotal()
-                )).toList();
-
-        String channelStr = order.getChannel() == OrderChannel.InPerson ? "In-person" : "Reservation";
+                .map(i -> new OrderItemResponse(i.getId(), i.getItemName(), i.getNotes()))
+                .toList();
 
         return new OrderResponse(
                 order.getId(),
-                order.getCustomerId(),
-                order.getCustomerName(),
                 order.getRestaurantId(),
-                order.getRestaurantName(),
+                order.getTableNumber(),
                 order.getStatus().name(),
-                channelStr,
                 order.getNotes(),
-                order.getEta(),
-                order.getTotal(),
-                order.getTableId(),
-                order.getWaiterId(),
-                order.getTipAmount(),
-                order.getWaiterComment(),
-                order.getPreparationMinutes(),
-                itemResponses,
                 order.getCreatedAt(),
-                order.getUpdatedAt()
+                order.getUpdatedAt(),
+                itemResponses
         );
-    }
-
-    private WaiterCallResponse toCallResponse(WaiterCall call) {
-        return new WaiterCallResponse(
-                call.getId(), call.getOrderId(), call.getTableId(),
-                call.getRestaurantId(), call.getStatus(), call.getMessage(),
-                call.getCreatedAt(), call.getResolvedAt()
-        );
-    }
-
-    private OrderChannel parseChannel(String channel) {
-        if ("In-person".equalsIgnoreCase(channel) || "InPerson".equalsIgnoreCase(channel)) {
-            return OrderChannel.InPerson;
-        }
-        return OrderChannel.Reservation;
     }
 }

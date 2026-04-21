@@ -1,16 +1,30 @@
 import { getSession } from '@/lib/auth';
-import type { 
-  Product, 
-  CreateProductDTO, 
-  UpdateProductDTO,   
-  BackendMenuItem,
-  BackendMenuCategory
+import type {
+  Product,
+  CreateProductDTO,
+  UpdateProductDTO,
+  ProductStatus
 } from '@/lib/types';
 
-
 const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8080';
-// Según tu Gateway, la ruta de entrada es /menu
-const BASE_PATH = `${API_BASE}/menu`; 
+
+interface BackendMenuItem {
+  id: string;
+  categoryId: string;
+  name: string;
+  description: string;
+  price: number;
+  imageUrl: string;
+  availableFrom?: string;
+  availableTo?: string;
+  preparationMinutes?: string;
+}
+
+interface BackendMenuCategory {
+  id: string;
+  restaurantId: number;
+  category: string;
+}
 
 const FRONTEND_TO_BACKEND_CATEGORY: Record<string, string> = {
   'Bebidas': 'BEBIDA',
@@ -44,6 +58,7 @@ function authHeaders(): Record<string, string> {
   };
 }
 
+// 🔥 Conversión robusta a Product
 function toProduct(item: BackendMenuItem, categoryName: string): Product {
   return {
     id: item.id,
@@ -52,79 +67,104 @@ function toProduct(item: BackendMenuItem, categoryName: string): Product {
     price: Number(item.price),
     category: categoryName,
     status: 'Publicado',
-    image: item.imageUrl || '',
-    createdAt: '', 
-    updatedAt: '',
-    availableFrom: item.availableFrom,
-    availableTo: item.availableTo,    
-    preparationMinutes: item.preparationMinutes
+    image: item.imageUrl ?? '',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    availableFrom: item.availableFrom ?? '00:00',
+    availableTo: item.availableTo ?? '23:59',
+    preparationMinutes: item.preparationMinutes,
   };
 }
 
+// 🔍 Obtener categoría con cache
+async function fetchCategory(categoryId: string): Promise<BackendMenuCategory | null> {
+  if (categoryCache.has(categoryId)) return categoryCache.get(categoryId)!;
+
+  const res = await fetch(`${API_BASE}/menu/categories/${categoryId}`, {
+    headers: authHeaders(),
+  });
+
+  if (!res.ok) return null;
+
+  const cat: BackendMenuCategory = await res.json();
+  categoryCache.set(cat.id, cat);
+  return cat;
+}
+
+// 🔄 Obtener o crear categoría
+async function getOrCreateCategory(
+  restaurantId: number,
+  backendCategory: string
+): Promise<string> {
+
+  for (const cat of categoryCache.values()) {
+    if (cat.restaurantId === restaurantId && cat.category === backendCategory) {
+      return cat.id;
+    }
+  }
+
+  const res = await fetch(`${API_BASE}/menu/categories`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ restaurantId, category: backendCategory }),
+  });
+
+  if (!res.ok) throw new Error('Error creando categoría');
+
+  const newCat: BackendMenuCategory = await res.json();
+  categoryCache.set(newCat.id, newCat);
+  return newCat.id;
+}
+
 export const productService = {
-  /**
-   * GET /menu/restaurants/{id}/items 
-   * (El Gateway lo convierte en /api/menus/restaurants/{id}/items)
-   */
+
+  // 📋 Obtener todos los productos
   async getAll(restaurantId: number): Promise<Product[]> {
-    const res = await fetch(`${BASE_PATH}/restaurants/${restaurantId}/items`, {
+    const res = await fetch(`${API_BASE}/menu/restaurants/${restaurantId}/items`, {
       headers: authHeaders(),
     });
-    
+
     if (!res.ok) return [];
+
     const items: BackendMenuItem[] = await res.json();
 
-    const categoryIds = [...new Set(items.map(i => i.categoryId))];
-    await Promise.all(categoryIds.map(async (id) => {
-      if (!categoryCache.has(id)) {
-        // GET /menu/categories/{id}
-        const cRes = await fetch(`${BASE_PATH}/categories/${id}`, { headers: authHeaders() });
-        if (cRes.ok) categoryCache.set(id, await cRes.json());
-      }
-    }));
+    const uniqueIds = [...new Set(items.map(i => i.categoryId))];
+    await Promise.all(uniqueIds.map(fetchCategory));
 
     return items.map(item => {
       const cat = categoryCache.get(item.categoryId);
-      const name = cat ? (BACKEND_TO_FRONTEND_CATEGORY[cat.category] || cat.category) : 'Sin categoría';
+      const name = cat
+        ? (BACKEND_TO_FRONTEND_CATEGORY[cat.category] ?? cat.category)
+        : 'Sin categoría';
+
       return toProduct(item, name);
     });
   },
 
-  /**
-   * POST /menu/categories/...
-   */
-  async create(data: CreateProductDTO, restaurantId: number): Promise<Product> {
-    const backendEnum = FRONTEND_TO_BACKEND_CATEGORY[data.category] || 'ADICIONAL';
-    
-    let categoryId = '';
-    const cachedCat = Array.from(categoryCache.values())
-      .find(c => c.restaurantId === restaurantId && c.category === backendEnum);
+  // 🔍 Obtener por ID
+  async getById(id: string): Promise<Product | null> {
+    const res = await fetch(`${API_BASE}/menu/items/${id}`, {
+      headers: authHeaders(),
+    });
 
-    if (cachedCat) {
-      categoryId = cachedCat.id;
-    } else {
-      const catRes = await fetch(`${BASE_PATH}/categories`, {
-        method: 'POST',
-        headers: authHeaders(),
-        body: JSON.stringify({ restaurantId, category: backendEnum })
-      });
-      if (!catRes.ok) throw new Error('Error al crear categoría');
-      const newCat: BackendMenuCategory = await catRes.json();
-      categoryCache.set(newCat.id, newCat);
-      categoryId = newCat.id;
-    }
-    const payload = {
-      name: data.name,
-      description: data.description,
-      price: data.price,
-      imageUrl: data.image,
-      availableFrom: data.availableFrom,
-      availableTo: data.availableTo,
-      isAvailable: true,
-      preparationMinutes: data.preparationMinutes ? parseInt(data.preparationMinutes) : undefined
-    };
-    console.log('Payload para creación:', payload);
-    const res = await fetch(`${BASE_PATH}/categories/${categoryId}/items`, {
+    if (!res.ok) return null;
+
+    const item: BackendMenuItem = await res.json();
+    const cat = await fetchCategory(item.categoryId);
+
+    const categoryName = cat
+      ? (BACKEND_TO_FRONTEND_CATEGORY[cat.category] ?? cat.category)
+      : 'Sin categoría';
+
+    return toProduct(item, categoryName);
+  },
+
+  // ➕ Crear producto
+  async create(data: CreateProductDTO, restaurantId: number): Promise<Product> {
+    const backendCategory = FRONTEND_TO_BACKEND_CATEGORY[data.category] ?? 'ADICIONAL';
+    const categoryId = await getOrCreateCategory(restaurantId, backendCategory);
+
+    const res = await fetch(`${API_BASE}/menu/categories/${categoryId}/items`, {
       method: 'POST',
       headers: authHeaders(),
       body: JSON.stringify({
@@ -135,61 +175,63 @@ export const productService = {
         availableFrom: data.availableFrom,
         availableTo: data.availableTo,
         preparationMinutes: data.preparationMinutes
-        
+          ? Number(data.preparationMinutes)
+          : undefined,
       }),
     });
 
-    if (!res.ok) throw new Error('Error al crear el producto');
-    const newItem: BackendMenuItem = await res.json();
-    return toProduct(newItem, data.category);
+    if (!res.ok) throw new Error('Error al crear producto');
+
+    const item: BackendMenuItem = await res.json();
+    return toProduct(item, data.category);
   },
 
-  /**
-   * PUT /menu/items/{id}
-   */
+  // ✏️ Actualizar producto
   async update(data: UpdateProductDTO): Promise<Product | null> {
-    const res = await fetch(`${BASE_PATH}/items/${data.id}`, {
+    const body: Record<string, unknown> = {};
+
+    if (data.name !== undefined) body.name = data.name;
+    if (data.description !== undefined) body.description = data.description;
+    if (data.price !== undefined) body.price = data.price;
+    if (data.image !== undefined) body.imageUrl = data.image;
+    if (data.availableFrom !== undefined) body.availableFrom = data.availableFrom;
+    if (data.availableTo !== undefined) body.availableTo = data.availableTo;
+    if (data.preparationMinutes !== undefined) {
+      body.preparationMinutes = data.preparationMinutes
+        ? Number(data.preparationMinutes)
+        : undefined;
+    }
+
+    const res = await fetch(`${API_BASE}/menu/items/${data.id}`, {
       method: 'PUT',
       headers: authHeaders(),
-      body: JSON.stringify({
-        name: data.name,
-        description: data.description,
-        price: data.price,
-        imageUrl: data.image,
-        availableFrom: data.availableFrom,
-        availableTo: data.availableTo,
-        preparationMinutes: data.preparationMinutes
-      }),
+      body: JSON.stringify(body),
     });
 
     if (!res.ok) return null;
-    const updatedItem: BackendMenuItem = await res.json();
-    
-    const cat = categoryCache.get(updatedItem.categoryId);
-    const catName = cat ? (BACKEND_TO_FRONTEND_CATEGORY[cat.category] || cat.category) : 'Sin categoría';
-    
-    return toProduct(updatedItem, catName);
+
+    const item: BackendMenuItem = await res.json();
+    const cat = await fetchCategory(item.categoryId);
+
+    const categoryName = cat
+      ? (BACKEND_TO_FRONTEND_CATEGORY[cat.category] ?? cat.category)
+      : (data.category ?? 'Sin categoría');
+
+    return toProduct(item, categoryName);
   },
 
-  /**
-   * DELETE /menu/items/{id}
-   */
+  // 🗑️ Eliminar
   async delete(id: string): Promise<boolean> {
-    const res = await fetch(`${BASE_PATH}/items/${id}`, {
+    const res = await fetch(`${API_BASE}/menu/items/${id}`, {
       method: 'DELETE',
       headers: authHeaders(),
     });
+
     return res.ok;
   },
 
-  async getById(id: string): Promise<Product | null> {
-    const res = await fetch(`${BASE_PATH}/items/${id}`, { headers: authHeaders() });
-    if (!res.ok) return null;
-    const item: BackendMenuItem = await res.json();
-    
-    const catRes = await fetch(`${BASE_PATH}/categories/${item.categoryId}`, { headers: authHeaders() });
-    const cat: BackendMenuCategory = await catRes.json();
-    
-    return toProduct(item, BACKEND_TO_FRONTEND_CATEGORY[cat.category] || cat.category);
-  }
+  // 🔄 Estado (placeholder)
+  async updateStatus(id: string, _status: ProductStatus): Promise<Product | null> {
+    return this.getById(id);
+  },
 };

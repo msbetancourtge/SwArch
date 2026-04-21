@@ -1,48 +1,69 @@
 CREATE TABLE IF NOT EXISTS orders (
-    id SERIAL PRIMARY KEY,
-    customer_id BIGINT NOT NULL,
-    customer_name VARCHAR(200) NOT NULL,
-    restaurant_id BIGINT NOT NULL,
-    restaurant_name VARCHAR(200) NOT NULL,
-    status VARCHAR(50) NOT NULL DEFAULT 'Preparing',
-    channel VARCHAR(50) NOT NULL DEFAULT 'In-person',
-    notes TEXT,
-    eta VARCHAR(50),
-    total DECIMAL(10,2) NOT NULL DEFAULT 0,
-    table_id BIGINT,
-    waiter_id BIGINT,
-    tip_amount DECIMAL(10,2) DEFAULT 0,
-    waiter_comment TEXT,
-    preparation_minutes INTEGER,
-    created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW()
+    id            SERIAL PRIMARY KEY,
+    restaurant_id BIGINT       NOT NULL,
+    table_number  INT          NOT NULL,
+    status        VARCHAR(20)  NOT NULL DEFAULT 'PENDING',
+    notes         TEXT,
+    created_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Local developer databases may still contain the older order schema.
+-- Keep startup idempotent and patch legacy columns/defaults in place so the
+-- current service model can run without requiring manual volume deletion.
+ALTER TABLE IF EXISTS orders
+    ADD COLUMN IF NOT EXISTS table_number INT;
+
+ALTER TABLE IF EXISTS orders
+    ALTER COLUMN table_number SET DEFAULT 0;
+
+UPDATE orders
+SET table_number = COALESCE(table_number, 0)
+WHERE table_number IS NULL;
+
+ALTER TABLE IF EXISTS orders
+    ALTER COLUMN table_number SET NOT NULL;
+
+UPDATE orders
+SET status = CASE UPPER(status)
+    WHEN 'PREPARING' THEN 'IN_PREPARATION'
+    WHEN 'READY' THEN 'READY'
+    WHEN 'SERVED' THEN 'DELIVERED'
+    WHEN 'DELIVERED' THEN 'DELIVERED'
+    WHEN 'CANCELLED' THEN 'CANCELLED'
+    WHEN 'PENDING' THEN 'PENDING'
+    ELSE 'PENDING'
+END
+WHERE status IS NOT NULL;
+
+ALTER TABLE IF EXISTS orders
+    ALTER COLUMN status TYPE VARCHAR(20);
+
+ALTER TABLE IF EXISTS orders
+    ALTER COLUMN status SET DEFAULT 'PENDING';
+
+-- One row per ordered unit so per-unit notes (e.g. "sin lechuga") can differ
+-- between two units of the same item. The frontend groups visually by
+-- (item_name, notes) when showing the kitchen view.
 CREATE TABLE IF NOT EXISTS order_items (
-    id SERIAL PRIMARY KEY,
-    order_id BIGINT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
-    menu_item_id VARCHAR(100) NOT NULL,
-    product_name VARCHAR(200) NOT NULL,
-    quantity INTEGER NOT NULL,
-    unit_price DECIMAL(10,2) NOT NULL,
-    subtotal DECIMAL(10,2) NOT NULL
+    id         SERIAL PRIMARY KEY,
+    order_id   BIGINT       NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+    item_name  VARCHAR(200) NOT NULL,
+    notes      TEXT
 );
 
-CREATE TABLE IF NOT EXISTS waiter_calls (
-    id SERIAL PRIMARY KEY,
-    order_id BIGINT REFERENCES orders(id),
-    table_id BIGINT,
-    restaurant_id BIGINT NOT NULL,
-    status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
-    message TEXT,
-    created_at TIMESTAMP DEFAULT NOW(),
-    resolved_at TIMESTAMP
-);
+ALTER TABLE IF EXISTS order_items
+    ADD COLUMN IF NOT EXISTS item_name VARCHAR(200);
 
-CREATE INDEX IF NOT EXISTS idx_orders_customer_id ON orders(customer_id);
-CREATE INDEX IF NOT EXISTS idx_orders_restaurant_id ON orders(restaurant_id);
-CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
-CREATE INDEX IF NOT EXISTS idx_orders_waiter_id ON orders(waiter_id);
-CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items(order_id);
-CREATE INDEX IF NOT EXISTS idx_waiter_calls_restaurant_id ON waiter_calls(restaurant_id);
-CREATE INDEX IF NOT EXISTS idx_waiter_calls_status ON waiter_calls(restaurant_id, status);
+ALTER TABLE IF EXISTS order_items
+    ADD COLUMN IF NOT EXISTS notes TEXT;
+
+UPDATE order_items
+SET item_name = COALESCE(item_name, product_name, 'UNKNOWN')
+WHERE item_name IS NULL;
+
+ALTER TABLE IF EXISTS order_items
+    ALTER COLUMN item_name SET DEFAULT 'UNKNOWN';
+
+ALTER TABLE IF EXISTS order_items
+    ALTER COLUMN item_name SET NOT NULL;

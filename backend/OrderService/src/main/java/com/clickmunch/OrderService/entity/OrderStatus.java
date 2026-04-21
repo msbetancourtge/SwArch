@@ -1,11 +1,9 @@
 package com.clickmunch.OrderService.entity;
 
 public enum OrderStatus {
-    Pending,
-    SentToKitchen,
-    Preparing,
-    Ready,
-    Served,
-    Delivered,
-    Cancelled
+    PENDING,
+    IN_PREPARATION,
+    READY,
+    DELIVERED,
+    CANCELLED
 }

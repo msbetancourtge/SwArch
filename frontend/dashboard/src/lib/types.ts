@@ -1,6 +1,4 @@
-﻿// ... (Todo tu código anterior se mantiene igual arriba)
-
-// Tipos para Productos
+﻿// Tipos para Productos
 export type ProductStatus = 'Borrador' | 'Pendiente' | 'Publicado';
 
 export interface Product {
@@ -13,11 +11,9 @@ export interface Product {
   image: string;
   createdAt: string;
   updatedAt: string;
-  // 🔥 Campos añadidos/asegurados
   availableFrom: string;
   availableTo: string;
-  
-  preparationMinutes?: string; 
+  preparationMinutes?: string;
 }
 
 export interface CreateProductDTO {
@@ -26,10 +22,8 @@ export interface CreateProductDTO {
   price: number;
   category: string;
   image: string;
-  // 🔥 Campos añadidos/asegurados
   availableFrom: string;
   availableTo: string;
-  
   preparationMinutes?: string;
 }
 
@@ -38,12 +32,11 @@ export interface UpdateProductDTO extends Partial<CreateProductDTO> {
   status?: ProductStatus;
 }
 
-// Tipos para Órdenes
+// =======================
+// ÓRDENES
+// =======================
 
 export type OrderChannel = 'Reservation' | 'In-person';
-
-
-
 
 export interface CreateOrderDTO {
   customerId: string;
@@ -60,6 +53,10 @@ export interface UpdateOrderDTO {
   notes?: string;
 }
 
+// =======================
+// RESTAURANTE
+// =======================
+
 export interface Restaurant {
   id: string;
   name: string;
@@ -75,7 +72,10 @@ export interface Restaurant {
   longitude: number;
 }
 
-// Categorías de productos
+// =======================
+// CATEGORÍAS
+// =======================
+
 export const PRODUCT_CATEGORIES = [
   'Bebidas',
   'Ensaladas',
@@ -91,6 +91,10 @@ export const PRODUCT_CATEGORIES = [
 
 export type ProductCategory = typeof PRODUCT_CATEGORIES[number];
 
+// =======================
+// MESAS Y HORARIOS
+// =======================
+
 export interface Table {
   id: number;
   restaurantId: number;
@@ -99,27 +103,18 @@ export interface Table {
   status: 'AVAILABLE' | 'OCCUPIED' | 'RESERVED' | 'CLEANING';
 }
 
-export interface TableApiResponse {
-  id: number;
-  restaurantId: number;
-  tableNumber: string;
-  seats: number;
-  status: string; 
-}
 export interface OperatingHours {
   id?: number;
   dayOfWeek: 'MONDAY' | 'TUESDAY' | 'WEDNESDAY' | 'THURSDAY' | 'FRIDAY' | 'SATURDAY' | 'SUNDAY';
-  openTime: string; // Formato "HH:mm"
-  closeTime: string; // Formato "HH:mm"
+  openTime: string;
+  closeTime: string;
   isOpen: boolean;
 }
 
-// --- LO QUE HACÍA FALTA PARA EL SERVICIO DE MENÚ ---
+// =======================
+// MENÚ BACKEND
+// =======================
 
-/**
- * Representa la estructura exacta que devuelve el MenuService (Spring Boot)
- * para un ítem individual.
- */
 export interface BackendMenuItem {
   id: string;
   categoryId: string;
@@ -127,64 +122,54 @@ export interface BackendMenuItem {
   description: string;
   price: number;
   imageUrl: string;
-  // 🔥 Campos añadidos para coincidir con el nuevo payload
   availableFrom: string;
   availableTo: string;
   isAvailable: boolean;
   preparationMinutes?: string;
 }
 
-/**
- * Representa la estructura de categoría que maneja el microservicio.
- * El campo 'category' es el Enum de Java.
- */
 export interface BackendMenuCategory {
   id: string;
   restaurantId: number;
   category: "ENTRADA" | "PLATO" | "POSTRE" | "BEBIDA" | "ENSALADA" | "ADICIONAL";
 }
 
-/**
- * Respuesta del endpoint /api/menus/restaurants/{restaurantId}
- * que devuelve el menú completo organizado.
- */
 export interface MenuRestaurantResponse {
   restaurantId: number;
   categories: {
     id: string;
-    name: string; // El nombre de la categoría (ej: "Bebidas")
+    name: string;
     restaurantId: number;
     items: BackendMenuItem[];
   }[];
 }
 
-/**
- * Estructura para crear o actualizar categorías
- */
 export interface MenuCategoryRequest {
   restaurantId: number;
   category: string;
 }
 
-/**
- * Estructura para crear o actualizar items según el controlador
- */
 export interface MenuItemRequest {
   name: string;
   description: string;
   price: number;
   imageUrl?: string;
-  // 🔥 Campos añadidos para el fetch del service
   availableFrom: string;
   availableTo: string;
   isAvailable: boolean;
   preparationMinutes?: number;
 }
+
+// =======================
+// RATINGS
+// =======================
+
 export interface RatingSummary {
   entityId: number;
   averageScore: number;
   totalRatings: number;
 }
+
 export interface IndividualRating {
   id: number;
   customerId: number;
@@ -192,10 +177,15 @@ export interface IndividualRating {
   restaurantId: number;
   restaurantName: string;
   orderId: number;
-  score: number;      // Calificación (1-5)
-  review: string;     // Comentario del cliente
-  createdAt: string;  // Formato ISO (2026-04-20T...)
+  score: number;
+  review: string;
+  createdAt: string;
 }
+
+// =======================
+// ÓRDENES DETALLE
+// =======================
+
 export type OrderStatus =
   | "Pending"
   | "SentToKitchen"
@@ -220,23 +210,45 @@ export type Order = {
   customerName: string;
   restaurantId: number;
   restaurantName: string;
-
   status: OrderStatus;
   channel: string;
   notes: string;
   eta: string;
-
   total: number;
   tableId: number | null;
   waiterId: number | null;
-
   tipAmount: number | null;
   waiterComment: string | null;
-
   preparationMinutes: number;
-
   items: OrderItem[];
-
   createdAt: string;
   updatedAt: string;
 };
+
+// =======================
+// 🍳 KITCHEN (MAIN)
+// =======================
+
+export type KitchenOrderStatus =
+  | 'PENDING'
+  | 'IN_PREPARATION'
+  | 'READY'
+  | 'DELIVERED'
+  | 'CANCELLED';
+
+export interface KitchenOrderItem {
+  id: number;
+  itemName: string;
+  notes: string | null;
+}
+
+export interface KitchenOrder {
+  id: number;
+  restaurantId: number;
+  tableNumber: number;
+  status: KitchenOrderStatus;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+  items: KitchenOrderItem[];
+}
