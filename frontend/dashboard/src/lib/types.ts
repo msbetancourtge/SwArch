@@ -39,32 +39,11 @@ export interface UpdateProductDTO extends Partial<CreateProductDTO> {
 }
 
 // Tipos para Órdenes
-export type OrderStatus = 'Preparing' | 'Ready' | 'Served' | 'Delivered' | 'Cancelled';
+
 export type OrderChannel = 'Reservation' | 'In-person';
 
-export interface OrderItem {
-  productId: string;
-  productName: string;
-  quantity: number;
-  unitPrice: number;
-  subtotal: number;
-}
 
-export interface Order {
-  id: string;
-  customer: string;
-  customerId?: string;
-  restaurant: string;
-  restaurantId?: string;
-  items: OrderItem[];
-  eta: string;
-  status: OrderStatus;
-  total: number;
-  notes?: string;
-  createdAt: string;
-  updatedAt: string;
-  channel: OrderChannel;
-}
+
 
 export interface CreateOrderDTO {
   customerId: string;
@@ -201,3 +180,63 @@ export interface MenuItemRequest {
   isAvailable: boolean;
   preparationMinutes?: number;
 }
+export interface RatingSummary {
+  entityId: number;
+  averageScore: number;
+  totalRatings: number;
+}
+export interface IndividualRating {
+  id: number;
+  customerId: number;
+  customerName: string;
+  restaurantId: number;
+  restaurantName: string;
+  orderId: number;
+  score: number;      // Calificación (1-5)
+  review: string;     // Comentario del cliente
+  createdAt: string;  // Formato ISO (2026-04-20T...)
+}
+export type OrderStatus =
+  | "Pending"
+  | "SentToKitchen"
+  | "Preparing"
+  | "Ready"
+  | "Served"
+  | "Delivered"
+  | "Cancelled";
+
+export type OrderItem = {
+  id: number;
+  menuItemId: string;
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+  subtotal: number;
+};
+
+export type Order = {
+  id: number;
+  customerId: number;
+  customerName: string;
+  restaurantId: number;
+  restaurantName: string;
+
+  status: OrderStatus;
+  channel: string;
+  notes: string;
+  eta: string;
+
+  total: number;
+  tableId: number | null;
+  waiterId: number | null;
+
+  tipAmount: number | null;
+  waiterComment: string | null;
+
+  preparationMinutes: number;
+
+  items: OrderItem[];
+
+  createdAt: string;
+  updatedAt: string;
+};
