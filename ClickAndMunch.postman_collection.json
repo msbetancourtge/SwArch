@@ -1589,7 +1589,7 @@
 		},
 		{
 			"name": "Order",
-			"description": "Order management endpoints (JWT required). Statuses: Preparing, Ready, Served, Delivered, Cancelled. Channels: Reservation, InPerson.",
+			"description": "Current OrderService gateway endpoints (JWT required). Supported routes in this branch: create order, get order by id, kitchen queue, restaurant orders, restaurant orders by status, patch status.",
 			"auth": {
 				"type": "bearer",
 				"bearer": [
@@ -1611,8 +1611,8 @@
 								"exec": [
 									"if (pm.response.code === 200 || pm.response.code === 201) {",
 									"    var json = pm.response.json();",
-									"    if (json.id) {",
-									"        pm.collectionVariables.set('orderId', json.id);",
+									"    if (json.data && json.data.id) {",
+									"        pm.collectionVariables.set('orderId', json.data.id);",
 									"    }",
 									"}"
 								]
@@ -1629,7 +1629,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"customerId\": 1,\n    \"customerName\": \"Test User\",\n    \"restaurantId\": 1,\n    \"restaurantName\": \"La Pizzería\",\n    \"channel\": \"InPerson\",\n    \"notes\": \"No onions please\",\n    \"items\": [\n        {\n            \"menuItemId\": \"item1\",\n            \"productName\": \"Margherita Pizza\",\n            \"quantity\": 2,\n            \"unitPrice\": 15.00\n        },\n        {\n            \"menuItemId\": \"item2\",\n            \"productName\": \"Lemonade\",\n            \"quantity\": 2,\n            \"unitPrice\": 4.00\n        }\n    ]\n}"
+							"raw": "{\n    \"restaurantId\": 1,\n    \"tableNumber\": 5,\n    \"notes\": \"Window table\",\n    \"items\": [\n        {\n            \"itemName\": \"Margherita Pizza\",\n            \"notes\": \"no onions\"\n        },\n        {\n            \"itemName\": \"Lemonade\",\n            \"notes\": \"extra ice\"\n        }\n    ]\n}"
 						},
 						"url": {
 							"raw": "{{baseUrl}}/order",
@@ -1640,25 +1640,27 @@
 								"order"
 							]
 						},
-						"description": "Create a new order. Channel: InPerson or Reservation."
+						"description": "Create a new order with the current OrderService payload schema."
 					},
 					"response": []
 				},
 				{
-					"name": "Get All Orders",
+					"name": "Get Kitchen Orders",
 					"request": {
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{baseUrl}}/order",
+							"raw": "{{baseUrl}}/order/kitchen/{{restaurantId}}",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
-								"order"
+								"order",
+								"kitchen",
+								"{{restaurantId}}"
 							]
 						},
-						"description": "Get all orders sorted by date descending"
+						"description": "Get active kitchen orders for a restaurant"
 					},
 					"response": []
 				},
@@ -1707,74 +1709,30 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{baseUrl}}/order/restaurant/{{restaurantId}}/status/Preparing",
+							"raw": "{{baseUrl}}/order/restaurant/{{restaurantId}}?status=PENDING",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"order",
 								"restaurant",
-								"{{restaurantId}}",
-								"status",
-								"Preparing"
-							]
-						},
-						"description": "Filter orders by restaurant and status. Statuses: Preparing, Ready, Served, Delivered, Cancelled"
-					},
-					"response": []
-				},
-				{
-					"name": "Get Orders by Customer",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{baseUrl}}/order/customer/{{customerId}}",
-							"host": [
-								"{{baseUrl}}"
+								"{{restaurantId}}"
 							],
-							"path": [
-								"order",
-								"customer",
-								"{{customerId}}"
+							"query": [
+								{
+									"key": "status",
+									"value": "PENDING"
+								}
 							]
 						},
-						"description": "Get all orders for a specific customer"
-					},
-					"response": []
-				},
-				{
-					"name": "Update Order",
-					"request": {
-						"method": "PUT",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"notes\": \"Updated: extra napkins\",\n    \"eta\": \"15 min\"\n}"
-						},
-						"url": {
-							"raw": "{{baseUrl}}/order/{{orderId}}",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"order",
-								"{{orderId}}"
-							]
-						},
-						"description": "Update order notes and ETA"
+						"description": "Filter restaurant orders by status. Valid values: PENDING, IN_PREPARATION, READY, DELIVERED, CANCELLED"
 					},
 					"response": []
 				},
 				{
 					"name": "Update Order Status",
 					"request": {
-						"method": "PUT",
+						"method": "PATCH",
 						"header": [
 							{
 								"key": "Content-Type",
@@ -1783,7 +1741,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"status\": \"Ready\"\n}"
+							"raw": "{\n    \"status\": \"IN_PREPARATION\"\n}"
 						},
 						"url": {
 							"raw": "{{baseUrl}}/order/{{orderId}}/status",
@@ -1796,308 +1754,7 @@
 								"status"
 							]
 						},
-						"description": "Change order status. Values: Preparing, Ready, Served, Delivered, Cancelled"
-					},
-					"response": []
-				},
-				{
-					"name": "Delete Order",
-					"request": {
-						"method": "DELETE",
-						"header": [],
-						"url": {
-							"raw": "{{baseUrl}}/order/{{orderId}}",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"order",
-								"{{orderId}}"
-							]
-						},
-						"description": "Delete an order and all its items"
-					},
-					"response": []
-				},
-				{
-					"name": "Get Orders by Waiter",
-					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{token}}",
-								"type": "text"
-							}
-						],
-						"url": {
-							"raw": "{{baseUrl}}/order/waiter/{{waiterId}}",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"order",
-								"waiter",
-								"{{waiterId}}"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Add Items to Order",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{token}}",
-								"type": "text"
-							},
-							{
-								"key": "Content-Type",
-								"value": "application/json",
-								"type": "text"
-							}
-						],
-						"url": {
-							"raw": "{{baseUrl}}/order/{{orderId}}/items",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"order",
-								"{{orderId}}",
-								"items"
-							]
-						},
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"items\": [\n    {\n      \"menuItemId\": \"item1\",\n      \"productName\": \"Extra Fries\",\n      \"quantity\": 1,\n      \"unitPrice\": 5000\n    }\n  ]\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Assign Waiter",
-					"request": {
-						"method": "PUT",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{token}}",
-								"type": "text"
-							}
-						],
-						"url": {
-							"raw": "{{baseUrl}}/order/{{orderId}}/assign-waiter",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"order",
-								"{{orderId}}",
-								"assign-waiter"
-							],
-							"query": [
-								{
-									"key": "waiterId",
-									"value": "{{waiterId}}"
-								}
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Assign Table",
-					"request": {
-						"method": "PUT",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{token}}",
-								"type": "text"
-							}
-						],
-						"url": {
-							"raw": "{{baseUrl}}/order/{{orderId}}/assign-table",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"order",
-								"{{orderId}}",
-								"assign-table"
-							],
-							"query": [
-								{
-									"key": "tableId",
-									"value": "{{tableId}}"
-								}
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Add Tip",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{token}}",
-								"type": "text"
-							},
-							{
-								"key": "Content-Type",
-								"value": "application/json",
-								"type": "text"
-							}
-						],
-						"url": {
-							"raw": "{{baseUrl}}/order/{{orderId}}/tip",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"order",
-								"{{orderId}}",
-								"tip"
-							]
-						},
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"tipAmount\": 5000,\n  \"waiterComment\": \"Great service!\"\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Create Waiter Call",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{token}}",
-								"type": "text"
-							},
-							{
-								"key": "Content-Type",
-								"value": "application/json",
-								"type": "text"
-							}
-						],
-						"url": {
-							"raw": "{{baseUrl}}/order/waiter-call",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"order",
-								"waiter-call"
-							]
-						},
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"orderId\": 1,\n  \"tableId\": 1,\n  \"restaurantId\": 1001,\n  \"message\": \"Need assistance\"\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Get Pending Waiter Calls",
-					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{token}}",
-								"type": "text"
-							}
-						],
-						"url": {
-							"raw": "{{baseUrl}}/order/waiter-calls/restaurant/{{restaurantId}}/pending",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"order",
-								"waiter-calls",
-								"restaurant",
-								"{{restaurantId}}",
-								"pending"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Acknowledge Waiter Call",
-					"request": {
-						"method": "PUT",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{token}}",
-								"type": "text"
-							}
-						],
-						"url": {
-							"raw": "{{baseUrl}}/order/waiter-calls/{{callId}}/acknowledge",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"order",
-								"waiter-calls",
-								"{{callId}}",
-								"acknowledge"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Resolve Waiter Call",
-					"request": {
-						"method": "PUT",
-						"header": [
-							{
-								"key": "Authorization",
-								"value": "Bearer {{token}}",
-								"type": "text"
-							}
-						],
-						"url": {
-							"raw": "{{baseUrl}}/order/waiter-calls/{{callId}}/resolve",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"order",
-								"waiter-calls",
-								"{{callId}}",
-								"resolve"
-							]
-						}
+						"description": "Change order status. Valid transitions: PENDING -> IN_PREPARATION/ CANCELLED, IN_PREPARATION -> READY/CANCELLED, READY -> DELIVERED"
 					},
 					"response": []
 				}
@@ -2105,7 +1762,7 @@
 		},
 		{
 			"name": "Reservation",
-			"description": "Reservation management endpoints (JWT required). Statuses: Pendiente, Confirmada, Cancelada, Completada.",
+			"description": "Reservation management endpoints exposed through API Gateway (JWT required).",
 			"auth": {
 				"type": "bearer",
 				"bearer": [

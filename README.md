@@ -155,7 +155,7 @@ Chefs connected to the dashboard's Kitchen page are subscribed to that topic and
 
 ### Backend
 
-The entire backend (6 microservices + 5 databases) runs in Docker containers.
+The current local compose stack brings up 6 core containers for the active flow: API Gateway, AuthService, RestaurantService, GeoService, MenuService, OrderService, 5 backing databases, and RabbitMQ for order events.
 
 ```bash
 # 1. Clone the repository
@@ -170,7 +170,7 @@ docker compose up --build -d
 docker compose ps
 ```
 
-All containers should show **"(healthy)"**. The API Gateway will be available at `http://localhost:8080` and the realtime kitchen WebSocket at `ws://localhost:8085/ws/kitchen`.
+All core containers should show **"(healthy)"**. The API Gateway will be available at `http://localhost:8080` and the realtime kitchen WebSocket at `ws://localhost:8085/ws/kitchen`.
 
 | Service | Port |
 |---------|------|
@@ -180,11 +180,30 @@ All containers should show **"(healthy)"**. The API Gateway will be available at
 | GeoService | 8083 |
 | MenuService | 8084 |
 | OrderService (REST + WebSocket) | 8085 |
+| RabbitMQ | 5672 |
+| RabbitMQ Management | 15672 |
 | auth_db (PostgreSQL) | 5433 |
 | restaurant_db (PostgreSQL) | 5434 |
 | geo_db (PostGIS) | 5435 |
 | order_db (PostgreSQL) | 5436 |
 | menu_db (MongoDB) | 27018 |
+
+Gateway-exposed routes currently verified in this branch:
+
+- `/auth/**` -> AuthService
+- `/restaurant/**` -> RestaurantService
+- `/menu/**` -> MenuService
+- `/order/**` -> OrderService
+- `/reservation/**` -> ReservationService
+- `/checkout/**` -> CheckoutService
+- `/rating/**` -> RatingService
+- `/notification/**` -> NotificationService
+
+Direct-only local endpoints currently verified:
+
+- GeoService: `http://localhost:8083/api/geo/**`
+- Password reset: `http://localhost:8081/auth/password-reset/**`
+- RabbitMQ management: `http://localhost:15672/api/**`
 
 **Quick test:** Register a user through the gateway:
 
@@ -197,6 +216,17 @@ curl -X POST http://localhost:8080/auth/register \
     "username": "testuser",
     "password": "123456",
     "role": "CUSTOMER"
+  }'
+```
+
+Then log in and use the returned JWT for protected routes:
+
+```bash
+curl -X POST http://localhost:8080/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "testuser",
+    "password": "123456"
   }'
 ```
 
@@ -218,6 +248,17 @@ curl -X POST http://localhost:8080/order \
 ```
 
 A chef subscribed to `/topic/kitchen/1` over the WebSocket receives the event immediately.
+
+Useful verified reads through the gateway:
+
+```bash
+curl -H "Authorization: Bearer <jwt>" http://localhost:8080/restaurant/owner/1
+curl -H "Authorization: Bearer <jwt>" http://localhost:8080/menu/restaurants/1
+curl -H "Authorization: Bearer <jwt>" http://localhost:8080/order/kitchen/1
+curl -H "Authorization: Bearer <jwt>" "http://localhost:8080/order/restaurant/1?status=PENDING"
+```
+
+If your local `order-db` volume was created before the latest OrderService model changes, restarting the stack is enough; OrderService now patches the legacy local schema on startup.
 
 To stop the backend:
 

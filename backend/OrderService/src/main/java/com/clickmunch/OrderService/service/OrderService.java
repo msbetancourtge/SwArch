@@ -1,19 +1,25 @@
 package com.clickmunch.OrderService.service;
 
-import com.clickmunch.OrderService.dto.*;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.clickmunch.OrderService.dto.ApiResponse;
+import com.clickmunch.OrderService.dto.CreateOrderRequest;
+import com.clickmunch.OrderService.dto.OrderItemResponse;
+import com.clickmunch.OrderService.dto.OrderResponse;
+import com.clickmunch.OrderService.dto.UpdateStatusRequest;
 import com.clickmunch.OrderService.entity.Order;
 import com.clickmunch.OrderService.entity.OrderItem;
 import com.clickmunch.OrderService.entity.OrderStatus;
 import com.clickmunch.OrderService.realtime.KitchenEventsPublisher;
 import com.clickmunch.OrderService.repository.OrderItemRepository;
 import com.clickmunch.OrderService.repository.OrderRepository;
-import org.springframework.stereotype.Service;
-
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 @Service
 public class OrderService {
@@ -38,6 +44,7 @@ public class OrderService {
         this.events = events;
     }
 
+    @Transactional
     public ApiResponse<OrderResponse> createOrder(CreateOrderRequest request) {
         Order order = new Order();
         order.setRestaurantId(request.restaurantId());

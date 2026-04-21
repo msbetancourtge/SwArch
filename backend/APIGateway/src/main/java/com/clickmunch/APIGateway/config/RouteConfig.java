@@ -49,6 +49,18 @@ public class RouteConfig {
     @Value("${services.order.url:http://localhost:8085}")
     private String orderServiceUrl;
 
+    @Value("${services.reservation.url:http://localhost:8086}")
+    private String reservationServiceUrl;
+
+    @Value("${services.checkout.url:http://localhost:8089}")
+    private String checkoutServiceUrl;
+
+    @Value("${services.rating.url:http://localhost:8088}")
+    private String ratingServiceUrl;
+
+    @Value("${services.notification.url:http://localhost:8087}")
+    private String notificationServiceUrl;
+
     @Bean
     public RouterFunction<ServerResponse> routes(JwtTokenUtil jwtTokenUtil) {
         JwtAuthenticationFilter jwtAuthenticationFilter = new JwtAuthenticationFilter(jwtTokenUtil);
@@ -81,7 +93,43 @@ public class RouteConfig {
                 .before(rewritePath("^/order(/.*)?$", "/api/orders$1"))
                 .filter(jwtAuthenticationFilter)
                 .build();
-        return auth.and(restaurant).and(menu).and(order);
+
+        RouterFunction<ServerResponse> reservation = route("reservation")
+            .route(path("/reservation/**"), http())
+            .before(uri(reservationServiceUrl))
+            .before(rewritePath("^/reservation(/.*)?$", "/api/reservations$1"))
+            .filter(jwtAuthenticationFilter)
+            .build();
+
+        RouterFunction<ServerResponse> checkout = route("checkout")
+            .route(path("/checkout/**"), http())
+            .before(uri(checkoutServiceUrl))
+            .before(rewritePath("^/checkout(/.*)?$", "/api/checkout$1"))
+            .filter(jwtAuthenticationFilter)
+            .build();
+
+        RouterFunction<ServerResponse> rating = route("rating")
+            .route(path("/rating/**"), http())
+            .before(uri(ratingServiceUrl))
+            .before(rewritePath("^/rating(/.*)?$", "/api/ratings$1"))
+            .filter(jwtAuthenticationFilter)
+            .build();
+
+        RouterFunction<ServerResponse> notification = route("notification")
+            .route(path("/notification/**"), http())
+            .before(uri(notificationServiceUrl))
+            .before(rewritePath("^/notification(/.*)?$", "/api/notifications$1"))
+            .filter(jwtAuthenticationFilter)
+            .build();
+
+        return auth
+            .and(restaurant)
+            .and(menu)
+            .and(order)
+            .and(reservation)
+            .and(checkout)
+            .and(rating)
+            .and(notification);
     }
 
     @Bean
