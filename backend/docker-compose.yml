@@ -105,6 +105,9 @@ services:
   apigateway:
     build: ./APIGateway
     container_name: apigateway
+    # The gateway is the ONLY public entry point for the microservices.
+    # REST and STOMP/WebSocket traffic both enter here on 8080; backend
+    # services are reachable only inside the `appnet` Docker network.
     ports:
       - "8080:8080"
     environment:
@@ -112,6 +115,7 @@ services:
       SERVICES_RESTAURANT_URL: http://restaurantservice:8082
       SERVICES_MENU_URL: http://menuservice:8084
       SERVICES_ORDER_URL: http://orderservice:8085
+      SERVICES_ORDER_WS_URL: ws://orderservice:8085
       SERVICES_RESERVATION_URL: http://reservationservice:8086
       SERVICES_CHECKOUT_URL: http://checkoutservice:8089
       SERVICES_RATING_URL: http://ratingservice:8088
@@ -139,8 +143,9 @@ services:
   authservice:
     build: ./AuthService
     container_name: authservice
-    ports:
-      - "8081:8081"
+    # Internal only: reach via apigateway:/auth/**.
+    expose:
+      - "8081"
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://auth-db:5432/auth_db
       SPRING_DATASOURCE_USERNAME: mike
@@ -154,8 +159,9 @@ services:
   restaurantservice:
     build: ./RestaurantService
     container_name: restaurantservice
-    ports:
-      - "8082:8082"
+    # Internal only: reach via apigateway:/restaurant/**.
+    expose:
+      - "8082"
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://restaurant-db:5432/restaurant_db
       SPRING_DATASOURCE_USERNAME: mike
@@ -175,8 +181,9 @@ services:
   geoservice:
     build: ./GeoService
     container_name: geoservice
-    ports:
-      - "8083:8083"
+    # Internal only: only RestaurantService consumes GeoService.
+    expose:
+      - "8083"
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://geo-db:5432/geo_db
       SPRING_DATASOURCE_USERNAME: mike
@@ -190,8 +197,9 @@ services:
   menuservice:
     build: ./MenuService
     container_name: menuservice
-    ports:
-      - "8084:8084"
+    # Internal only: reach via apigateway:/menu/**.
+    expose:
+      - "8084"
     environment:
       SPRING_MONGODB_URI: mongodb://mike:secret@menu-db:27017/menu_db?authSource=admin
       SPRING_MONGODB_DATABASE: menu_db
@@ -291,8 +299,10 @@ services:
   orderservice:
     build: ./OrderService
     container_name: orderservice
-    ports:
-      - "8085:8085"
+    # Internal only: REST through apigateway:/order/**, WebSocket through
+    # apigateway:/ws/kitchen. The reactive gateway proxies both.
+    expose:
+      - "8085"
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://order-db:5432/order_db
       SPRING_DATASOURCE_USERNAME: mike
@@ -312,8 +322,9 @@ services:
   reservationservice:
     build: ./ReservationService
     container_name: reservationservice
-    ports:
-      - "8086:8086"
+    # Internal only: reach via apigateway:/reservation/**.
+    expose:
+      - "8086"
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://reservation-db:5432/reservation_db
       SPRING_DATASOURCE_USERNAME: mike
@@ -336,8 +347,9 @@ services:
   ratingservice:
     build: ./RatingService
     container_name: ratingservice
-    ports:
-      - "8088:8088"
+    # Internal only: reach via apigateway:/rating/**.
+    expose:
+      - "8088"
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://rating-db:5432/rating_db
       SPRING_DATASOURCE_USERNAME: mike
@@ -351,8 +363,9 @@ services:
   notificationservice:
     build: ./NotificationService
     container_name: notificationservice
-    ports:
-      - "8087:8087"
+    # Internal only: reach via apigateway:/notification/**.
+    expose:
+      - "8087"
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://notification-db:5432/notification_db
       SPRING_DATASOURCE_USERNAME: mike
@@ -372,8 +385,9 @@ services:
   checkoutservice:
     build: ./CheckoutService
     container_name: checkoutservice
-    ports:
-      - "8089:8089"
+    # Internal only: reach via apigateway:/checkout/**.
+    expose:
+      - "8089"
     environment:
       MENU_SERVICE_URL: http://menuservice:8084
       ORDER_SERVICE_URL: http://orderservice:8085

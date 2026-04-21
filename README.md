@@ -30,7 +30,7 @@ Click & Munch is a digital platform designed to streamline the dining experience
 
 For restaurant owners and managers, the platform provides a comprehensive dashboard to manage restaurant profiles, define and update menu categories and items (including images and pricing), and monitor incoming orders in real time. Chefs see new orders appear instantly on a kitchen board and advance them through a strict state machine (PENDING → IN_PREPARATION → READY → DELIVERED), with per-unit special instructions (e.g. "sin lechuga") so two of the same dish in one order can have different preparations. The system supports role-based access for different staff members (managers, waiters, chefs), ensuring that each team member sees only the information relevant to their responsibilities.
 
-The architecture is built around independent microservices—authentication, restaurant management, geolocation, menu management, and order lifecycle—connected through a centralized API Gateway for REST traffic, plus a dedicated realtime WebSocket channel (STOMP) for pushing kitchen events to chefs the moment a waiter places an order. This design ensures scalability, fault isolation, and the ability to evolve each service independently as the platform grows.
+The architecture is built around independent microservices—authentication, restaurant management, geolocation, menu management, and order lifecycle—connected through a centralized API Gateway that acts as the single public entry point for both REST traffic and the realtime STOMP/WebSocket channel that pushes kitchen events to chefs the moment a waiter places an order. This design ensures scalability, fault isolation, and the ability to evolve each service independently as the platform grows.
 
 ---
 
@@ -49,27 +49,30 @@ The architecture is built around independent microservices—authentication, res
 │   │   Native)        │          │  Port 5173       │   │
 │   └────────┬─────────┘          └────────┬─────────┘   │
 └────────────┼─────────────────────────────┼─────────────┘
-             │         HTTP / REST         │   WebSocket
-             └──────────────┬──────────────┘   (STOMP, kitchen)
-                            │                         │
-                            ▼                         │
-              ┌─────────────────────────┐             │
-              │      API Gateway        │             │
-              │    (Spring Cloud MVC)   │             │
-              │      Port 8080          │             │
-              │  ┌───────────────────┐  │             │
-              │  │ JWT Auth Filter   │  │             │
-              │  │ Route Rewriting   │  │             │
-              │  │ CORS Handling     │  │             │
-              │  └───────────────────┘  │             │
-              └──┬──────┬──────┬──────┬─┘             │
-                 │      │      │      │               │
-        ┌────────┘      │      │      └────────┐      │
-        ▼               ▼      ▼               ▼      │
+             │   HTTP / REST + STOMP over WebSocket
+             └──────────────┬──────────────┘
+                            │
+                            ▼
+              ┌──────────────────────────────────┐
+              │           API Gateway            │
+              │ (Spring Cloud Gateway / WebFlux  │
+              │   on Netty — single public edge) │
+              │            Port 8080             │
+              │  ┌────────────────────────────┐  │
+              │  │ JWT Auth Filter (per-route)│  │
+              │  │ Path Rewriting             │  │
+              │  │ CORS Handling              │  │
+              │  │ WebSocket Upgrade Proxy    │  │
+              │  └────────────────────────────┘  │
+              └──┬──────┬──────┬──────┬──────────┘
+                 │      │      │      │
+        ┌────────┘      │      │      └────────┐
+        ▼               ▼      ▼               ▼
 ┌───────────┐  ┌──────────────┐  ┌───────────┐  ┌────────────┐
-│AuthService│  │  Restaurant  │  │MenuService│  │OrderService│◀┘
-│ Port 8081 │  │  Service     │  │ Port 8084 │  │ Port 8085  │
-│           │  │  Port 8082   │  │           │  │  + WS /ws  │
+│AuthService│  │  Restaurant  │  │MenuService│  │OrderService│
+│ (8081)    │  │  Service     │  │ (8084)    │  │ (8085)     │
+│ internal  │  │  (8082)      │  │ internal  │  │ + WS /ws   │
+│           │  │  internal    │  │           │  │ internal   │
 └─────┬─────┘  └──┬─────┬────-┘  └─────┬─────┘  └──────┬─────┘
       │           │     │              │               │
       ▼           │     ▼              ▼               ▼
@@ -91,7 +94,7 @@ The architecture is built around independent microservices—authentication, res
 | Style | Where Applied | Description |
 |-------|---------------|-------------|
 | **Microservices** | Entire backend | The system is decomposed into six independently deployable services (AuthService, RestaurantService, GeoService, MenuService, OrderService, API Gateway), each owning its own database and communicating via REST. |
-| **API Gateway** | APIGateway service | A single entry point routes all REST external traffic, performs path rewriting, handles CORS, and enforces JWT authentication before forwarding requests to downstream services. |
+| **API Gateway** | APIGateway service | A single entry point routes all external traffic — REST and STOMP/WebSocket — performs path rewriting, handles CORS, and enforces JWT authentication on protected REST routes before forwarding to downstream services. |
 | **Layered Architecture** | Each microservice | Every service follows a Controller → Service → Repository layering, separating HTTP handling, business logic, and data access concerns. |
 | **Client-Server** | Frontend ↔ Backend | The mobile app and web dashboard act as clients that consume the backend's RESTful API through the gateway. |
 | **Pipe-and-Filter** | Gateway request pipeline | Incoming requests pass through a pipeline of filters (JWT authentication, path rewriting, URI resolution) before reaching the target service handler. |
@@ -104,7 +107,7 @@ The architecture is built around independent microservices—authentication, res
 
 | Component | Responsibility | Technology |
 |-----------|---------------|------------|
-| **API Gateway** | Central REST ingress; routes, rewrites paths, enforces JWT on protected routes, handles CORS. | Spring Cloud Gateway Server MVC, Java 21 |
+| **API Gateway** | Single public ingress for REST and WebSocket; routes, rewrites paths, enforces JWT on protected routes, handles CORS, and proxies the HTTP→WebSocket upgrade for STOMP traffic. | Spring Cloud Gateway Server WebFlux (reactive, Netty), Java 21 |
 | **AuthService** | User registration, login, JWT token generation, password reset, user lookup. | Spring Boot 4, Spring Security, Spring Data JDBC, PostgreSQL |
 | **RestaurantService** | Restaurant CRUD, owner validation, nearby search orchestration, restaurant details aggregation. | Spring Boot 4, Spring Data JDBC, PostgreSQL |
 | **GeoService** | Geospatial storage and proximity queries for restaurant locations. | Spring Boot 4, Spring Data JDBC, PostGIS |
@@ -122,7 +125,8 @@ The architecture is built around independent microservices—authentication, res
 | API Gateway | RestaurantService | HTTP/REST | Forwards `/restaurant/**` → `/api/restaurants/**` (JWT-protected). |
 | API Gateway | MenuService | HTTP/REST | Forwards `/menu/**` → `/api/menus/**` (JWT-protected). |
 | API Gateway | OrderService | HTTP/REST | Forwards `/order/**` → `/api/orders/**` (JWT-protected). |
-| Web Dashboard (Chef) | OrderService | WebSocket/STOMP | Direct connection `ws://orderservice:8085/ws/kitchen` for realtime kitchen events. See "Realtime channel" below for why this bypasses the gateway. |
+| Mobile App / Dashboard (Chef) | API Gateway | WebSocket/STOMP | Clients connect to `ws://<gateway>:8080/ws/kitchen`. The gateway proxies the HTTP Upgrade handshake transparently (Spring Cloud Gateway WebFlux on Netty). |
+| API Gateway | OrderService | WebSocket/STOMP | Internal upgrade to `ws://orderservice:8085/ws/kitchen` for the kitchen events channel. |
 | RestaurantService | AuthService | HTTP/REST | Validates owner identity via `AuthClient`. |
 | RestaurantService | GeoService | HTTP/REST | Creates locations and queries nearby restaurants via `GeoClient`. |
 | RestaurantService | MenuService | HTTP/REST | Fetches menu data for restaurant details via `MenuClient`. |
@@ -141,7 +145,7 @@ When a waiter places a new order via `POST /order` (HTTP REST, through the gatew
 
 Chefs connected to the dashboard's Kitchen page are subscribed to that topic and see the card appear instantly, with no polling. The same mechanism publishes `ORDER_STATUS_CHANGED` whenever the chef advances an order (PENDING → IN_PREPARATION → READY → DELIVERED). A 60-second safety-net poll keeps the UI correct after reconnects or missed frames.
 
-**Why WebSocket is not proxied through the gateway:** Spring Cloud Gateway Server MVC (the servlet flavor used here) does not transparently proxy the HTTP Upgrade handshake required for WebSockets; only the reactive flavor does. Rather than migrate the entire gateway to reactive for one feature, the project follows the common production pattern of separating REST and realtime edges (e.g. AWS API Gateway + AppSync, or nginx with distinct locations). If a single edge becomes desirable later, an nginx/traefik sidecar can be added in front to terminate both HTTP and WebSocket on one port.
+**Single-edge ingress (REST + WebSocket on port 8080):** the API Gateway runs the reactive flavor of Spring Cloud Gateway (Netty + WebFlux), which natively proxies the HTTP Upgrade handshake. A dedicated route `path("/ws/**")` with a `ws://orderservice:8085` URI tells the gateway to switch into WebSocket pipe mode and stream STOMP frames between the client and OrderService. Backend microservices (`authservice`, `restaurantservice`, `geoservice`, `menuservice`, `orderservice`) are no longer published to the host; they are reachable only inside the Docker network, which closes the previous "two public edges" surface area.
 
 ---
 
@@ -170,23 +174,30 @@ docker compose up --build -d
 docker compose ps
 ```
 
-All core containers should show **"(healthy)"**. The API Gateway will be available at `http://localhost:8080` and the realtime kitchen WebSocket at `ws://localhost:8085/ws/kitchen`.
+All containers should show **"(healthy)"**. The API Gateway is the single public edge for the microservices: REST is at `http://localhost:8080` and the realtime kitchen WebSocket is at `ws://localhost:8080/ws/kitchen` (proxied to OrderService internally). Backend microservice ports are intentionally not published to the host — only the gateway, the databases, and the RabbitMQ admin UI are.
 
-| Service | Port |
-|---------|------|
-| API Gateway | 8080 |
-| AuthService | 8081 |
-| RestaurantService | 8082 |
-| GeoService | 8083 |
-| MenuService | 8084 |
-| OrderService (REST + WebSocket) | 8085 |
-| RabbitMQ | 5672 |
-| RabbitMQ Management | 15672 |
-| auth_db (PostgreSQL) | 5433 |
-| restaurant_db (PostgreSQL) | 5434 |
-| geo_db (PostGIS) | 5435 |
-| order_db (PostgreSQL) | 5436 |
-| menu_db (MongoDB) | 27018 |
+| Service | Host port | Notes |
+|---------|----------:|-------|
+| API Gateway (REST + WebSocket) | **8080** | Only public edge for the microservices |
+| AuthService | — | Internal only (`authservice:8081` on `appnet`) |
+| RestaurantService | — | Internal only (`restaurantservice:8082`) |
+| GeoService | — | Internal only (`geoservice:8083`) |
+| MenuService | — | Internal only (`menuservice:8084`) |
+| OrderService | — | Internal only (`orderservice:8085`, REST + WS) |
+| ReservationService | — | Internal only (`reservationservice:8086`) |
+| NotificationService | — | Internal only (`notificationservice:8087`) |
+| RatingService | — | Internal only (`ratingservice:8088`) |
+| CheckoutService | — | Internal only (`checkoutservice:8089`) |
+| RabbitMQ (AMQP) | 5672 | Direct host port for local producers/consumers |
+| RabbitMQ Management UI | 15672 | `http://localhost:15672` |
+| auth_db (PostgreSQL) | 5433 | Dev inspection |
+| restaurant_db (PostgreSQL) | 5434 | Dev inspection |
+| geo_db (PostGIS) | 5435 | Dev inspection |
+| order_db (PostgreSQL) | 5436 | Dev inspection |
+| menu_db (MongoDB) | 27018 | Dev inspection |
+| reservation_db (PostgreSQL) | 5437 | Dev inspection |
+| rating_db (PostgreSQL) | 5438 | Dev inspection |
+| notification_db (PostgreSQL) | 5439 | Dev inspection |
 
 Gateway-exposed routes currently verified in this branch:
 
@@ -199,11 +210,11 @@ Gateway-exposed routes currently verified in this branch:
 - `/rating/**` -> RatingService
 - `/notification/**` -> NotificationService
 
-Direct-only local endpoints currently verified:
+Direct-only local endpoints (not proxied by the gateway):
 
-- GeoService: `http://localhost:8083/api/geo/**`
-- Password reset: `http://localhost:8081/auth/password-reset/**`
-- RabbitMQ management: `http://localhost:15672/api/**`
+- RabbitMQ management UI: `http://localhost:15672` (default user from `docker-compose.yml`)
+
+All other HTTP traffic — including password-reset and the GeoService — goes through the gateway. Internal-only endpoints are reachable only between containers on the `appnet` Docker network.
 
 **Quick test:** Register a user through the gateway:
 

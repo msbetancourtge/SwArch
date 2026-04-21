@@ -5,14 +5,14 @@ import { getSession } from '@/lib/auth';
 /**
  * Realtime kitchen events from OrderService over STOMP/WebSocket.
  *
- * Architectural note: this connects DIRECTLY to the OrderService WebSocket
- * endpoint (ws://localhost:8085/ws/kitchen), not through the API Gateway.
- * The MVC flavor of Spring Cloud Gateway does not transparently proxy the
- * HTTP Upgrade handshake; REST calls still go through the gateway at 8080.
- * See RouteConfig.java in the APIGateway for the full rationale.
+ * Connects through the API Gateway at ws://<gateway>/ws/kitchen. The
+ * gateway runs Spring Cloud Gateway on WebFlux/Netty, which proxies the
+ * HTTP Upgrade handshake transparently. REST and realtime share a single
+ * public edge on port 8080; OrderService is no longer reachable from the
+ * host directly. See backend/APIGateway/.../RouteConfig.java.
  */
 
-const DEFAULT_WS_URL = 'ws://localhost:8085/ws/kitchen';
+const DEFAULT_WS_URL = 'ws://localhost:8080/ws/kitchen';
 const WS_URL = (import.meta.env.VITE_ORDER_WS_URL as string | undefined) ?? DEFAULT_WS_URL;
 
 export type KitchenEventType = 'ORDER_CREATED' | 'ORDER_STATUS_CHANGED';

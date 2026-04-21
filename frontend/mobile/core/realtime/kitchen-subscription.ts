@@ -4,26 +4,26 @@ import type { KitchenEvent } from '@/core/orders/interface/order';
 
 // Realtime kitchen channel for the waiter app.
 //
-// Architectural note: this connects DIRECTLY to the OrderService WebSocket
-// endpoint (ws://<host>:8085/ws/kitchen), NOT through the API Gateway. The
-// MVC flavor of Spring Cloud Gateway does not transparently proxy the HTTP
-// Upgrade handshake. REST traffic still goes through the gateway at :8080.
-// See backend/APIGateway/.../RouteConfig.java for the full rationale.
+// Connects through the API Gateway (Spring Cloud Gateway on WebFlux/Netty)
+// at ws://<gateway>:8080/ws/kitchen. The gateway proxies the HTTP Upgrade
+// handshake transparently and pipes STOMP frames to OrderService. REST and
+// realtime share the same public edge — backend microservice ports are no
+// longer published to the host. See backend/APIGateway/.../RouteConfig.java.
 
 const resolveWsUrl = (): string => {
     const stage = process.env.EXPO_PUBLIC_STAGE || 'dev';
     if (stage === 'prod') {
-        return process.env.EXPO_PUBLIC_ORDER_WS_URL ?? 'ws://localhost:8085/ws/kitchen';
+        return process.env.EXPO_PUBLIC_ORDER_WS_URL ?? 'ws://localhost:8080/ws/kitchen';
     }
     if (Platform.OS === 'ios') {
         return (
             process.env.EXPO_PUBLIC_ORDER_WS_URL_IOS ??
-            'ws://localhost:8085/ws/kitchen'
+            'ws://localhost:8080/ws/kitchen'
         );
     }
     return (
         process.env.EXPO_PUBLIC_ORDER_WS_URL_ANDROID ??
-        'ws://10.0.2.2:8085/ws/kitchen'
+        'ws://10.0.2.2:8080/ws/kitchen'
     );
 };
 

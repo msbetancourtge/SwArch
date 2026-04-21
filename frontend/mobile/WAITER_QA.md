@@ -11,24 +11,25 @@ local docker-compose stack.
    docker compose up -d
    ```
 
-   The following must be reachable from your device / emulator:
+   Only the API Gateway is published to the host. REST and STOMP/WebSocket
+   share a single edge on port 8080:
 
    - `http://<host>:8080` – API Gateway (REST)
-   - `ws://<host>:8085/ws/kitchen` – OrderService WebSocket
+   - `ws://<host>:8080/ws/kitchen` – Kitchen WebSocket (proxied to OrderService)
 
-   `<host>` is `localhost` for iOS simulator, `10.0.2.2` or your LAN IP for
-   Android emulator, your LAN IP for a physical device.
+   `<host>` is `localhost` for iOS simulator, `10.0.2.2` for Android
+   emulator, your LAN IP for a physical device.
 
 2. Mobile config (`frontend/mobile/.env`):
 
    ```dotenv
    EXPO_PUBLIC_STAGE=dev
-   EXPO_PUBLIC_API_URL_IOS=http://localhost:8081
-   EXPO_PUBLIC_API_URL_ANDROID=http://10.0.2.2:8081
+   EXPO_PUBLIC_API_URL_IOS=http://localhost:8080
+   EXPO_PUBLIC_API_URL_ANDROID=http://10.0.2.2:8080
    EXPO_PUBLIC_GATEWAY_URL_IOS=http://localhost:8080
    EXPO_PUBLIC_GATEWAY_URL_ANDROID=http://10.0.2.2:8080
-   EXPO_PUBLIC_ORDER_WS_URL_IOS=ws://localhost:8085/ws/kitchen
-   EXPO_PUBLIC_ORDER_WS_URL_ANDROID=ws://10.0.2.2:8085/ws/kitchen
+   EXPO_PUBLIC_ORDER_WS_URL_IOS=ws://localhost:8080/ws/kitchen
+   EXPO_PUBLIC_ORDER_WS_URL_ANDROID=ws://10.0.2.2:8080/ws/kitchen
    EXPO_PUBLIC_WAITER_RESTAURANT_ID=1
    ```
 
