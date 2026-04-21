@@ -154,12 +154,13 @@ export const RegisterPage = () => {
               </div>
             </div>
           </form>
-          <div className="relative hidden bg-muted md:block">
-            <img
-              src="/placeholder.svg"
-              alt="Image"
-              className="absolute inset-0 h-full w-full object-cover dark:brightness-[0.2] dark:grayscale"
-            />
+          <div className="relative hidden bg-gradient-to-br from-orange-400 via-red-400 to-pink-400 md:flex md:flex-col md:items-center md:justify-center md:p-8">
+            <div className="text-white text-center space-y-4 z-10">
+              <h2 className="text-4xl font-bold">Click & Munch</h2>
+              <p className="text-xl">Dashboard de Administración</p>
+              <p className="text-lg opacity-90">Gestiona tu restaurante de forma fácil y eficiente</p>
+            </div>
+            <div className="absolute inset-0 bg-black/10"></div>
           </div>
         </CardContent>
       </Card>
