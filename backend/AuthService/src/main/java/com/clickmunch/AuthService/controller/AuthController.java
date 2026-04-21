@@ -1,5 +1,5 @@
 package com.clickmunch.AuthService.controller;
-
+import com.clickmunch.AuthService.entity.Role;
 import com.clickmunch.AuthService.dto.*;
 import com.clickmunch.AuthService.service.AuthService;
 import jakarta.validation.Valid;
@@ -19,8 +19,8 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<String>> login(@RequestBody LoginRequest loginRequest) {
-        ApiResponse<String> response = authService.login(loginRequest);
+    public ResponseEntity<ApiResponse<LoginResponse>> login(@RequestBody LoginRequest loginRequest) {
+        ApiResponse<LoginResponse> response = authService.login(loginRequest);
         return ResponseEntity.ok(response);
     }
 
@@ -78,7 +78,7 @@ public class AuthController {
     }
 
     @GetMapping("/users/role/{role}")
-    public ResponseEntity<List<UserInfoResponse>> getUsersByRole(@PathVariable String role) {
+    public ResponseEntity<List<UserInfoResponse>> getUsersByRole(@PathVariable Role role) {
         return ResponseEntity.ok(authService.getUsersByRole(role));
     }
 }

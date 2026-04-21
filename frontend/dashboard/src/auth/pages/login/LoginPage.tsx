@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label"
 import { Link, useNavigate } from "react-router"
 import { useState } from "react"
 import { useAuth } from "@/contexts/AuthContext"
+import { getCurrentUserRole } from "@/lib/auth"
 
 export const LoginPage = () => {
   const navigate = useNavigate();
@@ -26,7 +27,12 @@ export const LoginPage = () => {
     setLoading(true);
     try {
       await login(username, password);
-      navigate("/");
+      const role = getCurrentUserRole();
+      if (role === 'CUSTOMER') {
+        navigate('/customer');
+      } else {
+        navigate('/');
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al iniciar sesión");
     } finally {

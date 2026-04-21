@@ -13,8 +13,11 @@ import { AdminRestaurantsPage } from './admin/pages/restaurants/AdminRestaurants
 import { AdminRatingsPage } from './admin/pages/ratings/AdminRatingsPage'
 import { ChefKitchenPage } from './admin/pages/kitchen/ChefKitchenPage'
 import { RegisterPage } from './auth/pages/register/RegisterPage'
+import { CustomerLayout } from './customer/layouts/CustomerLayout'
 import { lazy } from 'react'
 import { LoginPage } from './auth/pages/login/LoginPage'
+import { TablesPage } from './admin/pages/tables/RestaurantTables'
+import { HoursPage } from './admin/pages/hours/HoursPage'
 import ProtectedRoute from './components/ProtectedRoute'
 
 const AuthLayout = lazy(() => import('./auth/layouts/AuthLayout'))
@@ -76,8 +79,24 @@ export const appRouter = createBrowserRouter([
             {
                 path: 'help',
                 element: <AdminHelpPage/>
-            }
+            },
+            {
+                path: 'tables',
+                element: <TablesPage/>
+            },
+            {
+                path: 'hours',
+                element: <HoursPage/>
+            },
+            
+
+
         ]
+    },
+
+    {
+        path: '/customer',
+        element: <ProtectedRoute><CustomerLayout/></ProtectedRoute>
     },
 
     {

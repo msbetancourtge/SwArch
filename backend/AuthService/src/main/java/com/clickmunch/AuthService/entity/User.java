@@ -1,24 +1,31 @@
 package com.clickmunch.AuthService.entity;
 
-import lombok.Builder;
-import lombok.Data;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.relational.core.mapping.Table;
-
+import jakarta.persistence.*; // IMPORTANTE: Usar Jakarta para JPA
+import lombok.*;
 import java.time.LocalDateTime;
 
+@Entity
+@Table(name = "users")
 @Data
 @Builder
-@Table( name = "users")
+@NoArgsConstructor
+@AllArgsConstructor
 public class User {
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
     private String name;
     private String email;
     private String username;
     private String passwordHash;
+
+    @Enumerated(EnumType.STRING)
     private Role role;
+
+    @Enumerated(EnumType.STRING)
     private ApprovalStatus approvalStatus;
+
     private LocalDateTime createdAt;
 
     private String phone;
@@ -34,4 +41,8 @@ public class User {
     private String resetToken;
     private LocalDateTime resetTokenExpiry;
 
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+    }
 }
