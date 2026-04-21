@@ -1,6 +1,8 @@
-// Auth Service - Conexión con backend AuthService (puerto 8081)
-
-const AUTH_API_BASE = import.meta.env.VITE_AUTH_API_BASE ?? "http://localhost:8081";
+// Auth via API Gateway (frontend should not call services directly)
+const API_GATEWAY_BASE =
+  import.meta.env.VITE_API_GATEWAY_URL ??
+  import.meta.env.VITE_API_URL ??
+  "http://localhost:8080";
 
 // Tipos de respuesta del backend
 interface ApiResponse<T> {
@@ -8,9 +10,7 @@ interface ApiResponse<T> {
   data: T | null;
 }
 
-interface LoginResponseData {
-  token: string;
-}
+type LoginResponseData = string | { token: string };
 
 interface RegisterRequest {
   name: string;
@@ -40,11 +40,23 @@ export function getSession() {
   const token = localStorage.getItem(TOKEN_KEY);
   const userStr = localStorage.getItem(USER_KEY);
   if (!token || !userStr) return null;
+  if (token === 'undefined' || token === 'null' || token.startsWith('mock-token-')) {
+    clearSession();
+    return null;
+  }
   try {
     return { token, user: JSON.parse(userStr) };
   } catch {
+    clearSession();
     return null;
   }
+}
+
+function extractJwtToken(data: LoginResponseData | null): string | null {
+  if (!data) return null;
+  if (typeof data === 'string') return data;
+  if (typeof data.token === 'string') return data.token;
+  return null;
 }
 
 // Cerrar sesión
@@ -103,7 +115,7 @@ export async function getOwnerRestaurantId(): Promise<number | null> {
 // Login
 export async function login(username: string, password: string): Promise<{ success: boolean; message: string; user?: { username: string; role: string } }> {
   try {
-    const res = await fetch(`${AUTH_API_BASE}/api/auth/login`, {
+    const res = await fetch(`${API_GATEWAY_BASE}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password } as LoginRequest),
@@ -111,11 +123,12 @@ export async function login(username: string, password: string): Promise<{ succe
 
     const data: ApiResponse<LoginResponseData> = await res.json();
 
-    if (!res.ok || !data.data) {
+    const token = extractJwtToken(data.data);
+
+    if (!res.ok || !token) {
       return { success: false, message: data.message || 'Error al iniciar sesión' };
     }
 
-    const { token } = data.data;
     const decoded = decodeJwtPayload(token);
     const role = decoded?.role ?? 'USER';
     const user = decoded?.sub ?? username;
@@ -123,19 +136,8 @@ export async function login(username: string, password: string): Promise<{ succe
 
     return { success: true, message: data.message, user: { username: user, role } };
   } catch (error) {
-    console.error('Login error (usando modo desarrollo):', error);
-    
-    // MODO DESARROLLO: Simular autenticación si el backend no está disponible
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    if (username === 'admin' && password === 'admin123') {
-      const mockUser = { username: 'admin', role: 'ADMIN' };
-      const mockToken = 'mock-token-' + Date.now();
-      saveSession(mockToken, mockUser);
-      return { success: true, message: 'Login exitoso (modo desarrollo)', user: mockUser };
-    }
-    
-    return { success: false, message: 'Credenciales inválidas' };
+    console.error('Login error:', error);
+    return { success: false, message: 'Error de conexión con el servidor' };
   }
 }
 
@@ -147,7 +149,7 @@ export async function register(
   password: string
 ): Promise<{ success: boolean; message: string }> {
   try {
-    const res = await fetch(`${AUTH_API_BASE}/api/auth/register`, {
+    const res = await fetch(`${API_GATEWAY_BASE}/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
