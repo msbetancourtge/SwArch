@@ -2,7 +2,7 @@
 
 <!-- Logo placeholder: replace the path below with the actual logo file -->
 <p align="center">
-  <img src="./Logo.jpeg" alt="Click & Munch Logo" width="250" />
+  <img src="./images/Logo.jpeg" alt="Click & Munch Logo" width="250" />
 </p>
 
 ## 1. Team
@@ -32,6 +32,13 @@ For restaurant owners and managers, the platform provides a comprehensive dashbo
 
 The architecture is built around independent microservices—authentication, restaurant management, geolocation, menu management, order lifecycle, reservations, notifications, ratings, and checkout orchestration—connected through a centralized API Gateway that acts as the single public entry point for both REST traffic and the realtime STOMP/WebSocket channel that pushes kitchen events to chefs the moment a waiter places an order. Asynchronous events flow between services via RabbitMQ. This design ensures scalability, fault isolation, and the ability to evolve each service independently as the platform grows.
 
+**General-purpose languages used in the code base:**
+
+- **Java** for the Spring Boot backend microservices and API Gateway.
+- **Python** for the CheckoutService implemented with FastAPI.
+- **TypeScript** for the web dashboard and the mobile application code.
+- **JavaScript** for frontend and tooling configuration files in the workspace.
+
 ---
 
 ## 3. Architectural Structures
@@ -42,8 +49,7 @@ The architecture is built around independent microservices—authentication, res
 
 #### C&C View
 
-<!-- Diagram placeholder: replace src with your exported C&C image path -->
-![Component-and-Connector (C&C) View Placeholder](./images/cc-view-placeholder.png)
+![Component-and-Connector (C&C) View](./images/C&C%20Diagram%20ClickAndMunch.jpg)
 
 #### Description of Architectural Elements and Relations
 
@@ -60,7 +66,7 @@ The architecture is built around independent microservices—authentication, res
 | **ReservationService** | Spring Boot 4, JDBC, PostgreSQL, RabbitMQ | Table reservations, capacity management, order linking. Publishes events to RabbitMQ. |
 | **NotificationService** | Spring Boot 4, JDBC, PostgreSQL, RabbitMQ, SSE | Consumes events from RabbitMQ, persists notifications, streams to clients via SSE. |
 | **RatingService** | Spring Boot 4, JDBC, PostgreSQL | Restaurant and waiter ratings with aggregate score summaries. |
-| **CheckoutService ★** | **Python 3.12 / FastAPI / httpx** | Saga orchestrator: validates reservation → creates order → links reservation. No own database. |
+| **CheckoutService** | **Python 3.12 / FastAPI / httpx** | Saga orchestrator: validates reservation → creates order → links reservation. No own database. |
 | **RabbitMQ** | RabbitMQ 3 (AMQP) | Async event bus decoupling OrderService/ReservationService from NotificationService. |
 | **Web Dashboard** | React 19, TypeScript, Vite, TailwindCSS | Admin panel; Chef Kitchen page subscribes to STOMP realtime channel. |
 | **Mobile App** | React Native, Expo SDK 54, Zustand, React Query | Customer-facing browsing, reservations, and ordering. |
@@ -89,20 +95,25 @@ The architecture is built around independent microservices—authentication, res
 | RabbitMQ | NotificationService | AMQP | Event delivery |
 | Each service | Own DB | JDBC / MongoDB | Each service owns exactly one database |
 
-#### Description of Architectural Styles and Patterns
+#### Description of Architectural Styles
 
-| Style / Pattern | Where Applied | Description |
-|-----------------|---------------|-------------|
-| **Microservices** | Entire backend | Ten independently deployable services, each owning its own database. |
-| **API Gateway** | APIGateway | Single entry point: routing, JWT enforcement, CORS, WebSocket proxy. |
-| **Saga (Orchestration)** | CheckoutService | Coordinates multi-step checkout across OrderService and ReservationService; handles failures per step. |
+| Style | Where Applied | Description |
+|-------|---------------|-------------|
+| **Microservices** | Entire backend | The backend is decomposed into independently deployable services, each with its own bounded responsibility and data ownership. |
+| **Client-Server** | Frontend ↔ Backend | The mobile app and dashboard act as clients that consume backend capabilities through the API Gateway. |
+| **Layered Architecture** | Each microservice | Each service separates presentation, business logic, and data access responsibilities to reduce coupling. |
+| **Event-Driven Architecture** | Order, Reservation, Notification flows | Domain events propagate asynchronously through RabbitMQ to decouple producers from consumers. |
+
+#### Description of Architectural Patterns
+
+| Pattern | Where Applied | Description |
+|---------|---------------|-------------|
+| **API Gateway** | APIGateway | A single entry point handles routing, JWT enforcement, CORS, and WebSocket proxying. |
+| **Saga (Orchestration)** | CheckoutService | Checkout coordinates a multi-step transaction across ReservationService and OrderService and handles partial failure points. |
 | **Publish/Subscribe** | RabbitMQ bus | OrderService and ReservationService publish events; NotificationService subscribes asynchronously. |
-| **Event-Driven** | OrderService kitchen channel | `ORDER_*` events pushed to chef clients over STOMP/WebSocket in realtime. |
-| **Layered Architecture** | Each microservice | Controller → Service → Repository; no layer skipping. |
-| **Pipe-and-Filter** | Gateway pipeline | JWT validation → path rewriting → URI resolution before forwarding. |
-| **State Machine** | OrderService | Strict lifecycle: PENDING → IN_PREPARATION → READY → DELIVERED / CANCELLED. |
-| **Client-Server** | Frontend ↔ Backend | Mobile and Dashboard consume REST APIs through the gateway. |
-| **Repository** | Data layer | Spring Data repositories encapsulate all persistence queries. |
+| **Pipe-and-Filter** | Gateway pipeline | Requests pass through authentication, path rewriting, and forwarding stages before reaching downstream services. |
+| **State Machine** | OrderService | Order status transitions are constrained to valid lifecycle changes only. |
+| **Repository** | Data layer | Spring Data repositories encapsulate persistence concerns behind repository interfaces. |
 
 ---
 
@@ -112,8 +123,7 @@ The architecture is built around independent microservices—authentication, res
 
 All backend components run as Docker containers on a single host within the `appnet` bridge network.
 
-<!-- Diagram placeholder: replace src with your exported Deployment image path -->
-![Deployment View Placeholder](./images/deployment-view-placeholder.png)
+![Deployment View](./images/Deployment_View.png)
 
 #### Description of Architectural Elements and Relations
 
@@ -144,8 +154,7 @@ All backend components run as Docker containers on a single host within the `app
 
 Every microservice (Java and Python) follows the same four-layer vertical slice:
 
-<!-- Diagram placeholder: replace src with your exported Layered image path -->
-![Layered View Placeholder](./images/layered-view-placeholder.png)
+![Layered View](./images/Layered_View.png)
 
 #### Description of Architectural Elements and Relations
 
@@ -173,8 +182,7 @@ Every microservice (Java and Python) follows the same four-layer vertical slice:
 
 The system is decomposed into five functional domains grouped by business capability:
 
-<!-- Diagram placeholder: replace src with your exported Decomposition image path -->
-![Decomposition View Placeholder](./images/decomposition-view-placeholder.png)
+![Decomposition View ](./images/Decomposition_View.png)
 
 #### Description of Architectural Elements and Relations
 
