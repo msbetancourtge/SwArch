@@ -10,13 +10,16 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
  * STOMP over WebSocket setup for pushing kitchen events to chef clients.
  *
  * Endpoint: /ws/kitchen
- *   - Reached directly at ws://orderservice:8085/ws/kitchen (service-to-service)
- *   - Reached from browsers at ws://localhost:8080/ws/order/ (proxied by the
- *     API Gateway with JWT handshake).
+ *   - Reached from clients at ws://<gateway-host>:8080/ws/kitchen — the
+ *     API Gateway (Spring Cloud Gateway on WebFlux/Netty) proxies the
+ *     HTTP Upgrade handshake to ws://orderservice:8085/ws/kitchen.
+ *   - Reached service-to-service at ws://orderservice:8085/ws/kitchen
+ *     (internal Docker network only; not published to the host).
  *
  * Topics:
- *   /topic/kitchen/{restaurantId}  - ORDER_CREATED, ORDER_STATUS_CHANGED events
- *     scoped to a single restaurant so chefs only see their kitchen.
+ *   /topic/kitchen/{restaurantId}  - ORDER_CREATED, ORDER_STATUS_CHANGED
+ *     events scoped to a single restaurant so chefs only see their
+ *     kitchen.
  */
 @Configuration
 @EnableWebSocketMessageBroker

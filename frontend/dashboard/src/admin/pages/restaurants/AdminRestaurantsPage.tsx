@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { LayoutGrid, MapPin, Search } from "lucide-react";
 import { RestaurantList } from "@/admin/components/restaurants/RestaurantList";
 import { RestaurantsMap } from "@/admin/components/restaurants/RestaurantsMap";
+import { RestaurantPreviewDialog } from "@/admin/components/restaurants/RestaurantPreviewDialog";
 import { restaurantService } from "@/lib/services/restaurantService";
 import type { Restaurant } from "@/lib/types";
 
@@ -11,6 +12,7 @@ export const AdminRestaurantsPage = () => {
   const [viewMode, setViewMode] = useState<"list" | "map">("list");
   const [search, setSearch] = useState("");
   const [cityFilter, setCityFilter] = useState("all");
+  const [selectedRestaurant, setSelectedRestaurant] = useState<Restaurant | null>(null);
 
   useEffect(() => {
     const loadRestaurants = async () => {
@@ -135,13 +137,24 @@ export const AdminRestaurantsPage = () => {
         ) : (
           <>
             {viewMode === "list" ? (
-              <RestaurantList restaurants={filteredRestaurants} />
+              <RestaurantList
+                restaurants={filteredRestaurants}
+                onRestaurantClick={(restaurant) => setSelectedRestaurant(restaurant)}
+              />
             ) : (
               <RestaurantsMap restaurants={filteredRestaurants} />
             )}
           </>
         )}
       </div>
+
+      <RestaurantPreviewDialog
+        restaurant={selectedRestaurant}
+        open={!!selectedRestaurant}
+        onOpenChange={(open) => {
+          if (!open) setSelectedRestaurant(null);
+        }}
+      />
     </div>
   );
 };

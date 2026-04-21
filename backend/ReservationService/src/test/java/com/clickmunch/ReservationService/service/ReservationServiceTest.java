@@ -1,30 +1,44 @@
 package com.clickmunch.ReservationService.service;
 
-import com.clickmunch.ReservationService.dto.*;
-import com.clickmunch.ReservationService.entity.Reservation;
-import com.clickmunch.ReservationService.entity.ReservationStatus;
-import com.clickmunch.ReservationService.repository.ReservationRepository;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import com.clickmunch.ReservationService.client.RestaurantClient;
+import com.clickmunch.ReservationService.dto.CreateReservationRequest;
+import com.clickmunch.ReservationService.dto.LinkOrderRequest;
+import com.clickmunch.ReservationService.dto.ReservationResponse;
+import com.clickmunch.ReservationService.dto.UpdateReservationStatusRequest;
+import com.clickmunch.ReservationService.entity.Reservation;
+import com.clickmunch.ReservationService.entity.ReservationStatus;
+import com.clickmunch.ReservationService.event.ReservationEventPublisher;
+import com.clickmunch.ReservationService.repository.ReservationRepository;
 
 @ExtendWith(MockitoExtension.class)
 class ReservationServiceTest {
 
     @Mock
     private ReservationRepository reservationRepository;
+
+    @Mock
+    private RestaurantClient restaurantClient;
+
+    @Mock
+    private ReservationEventPublisher eventPublisher;
 
     @InjectMocks
     private ReservationService reservationService;
@@ -97,13 +111,15 @@ class ReservationServiceTest {
     void updateStatus_shouldChangeStatus() {
         Reservation reservation = buildReservation();
         when(reservationRepository.findById(1L)).thenReturn(Optional.of(reservation));
-        when(reservationRepository.save(any(Reservation.class))).thenReturn(reservation);
+        when(reservationRepository.save(any(Reservation.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         UpdateReservationStatusRequest request = new UpdateReservationStatusRequest("Confirmada");
         ReservationResponse response = reservationService.updateStatus(1L, request);
 
         assertNotNull(response);
+        assertEquals("Confirmada", response.status());
         verify(reservationRepository).save(any(Reservation.class));
+        verify(eventPublisher).publishReservationConfirmed(any());
     }
 
     @Test
