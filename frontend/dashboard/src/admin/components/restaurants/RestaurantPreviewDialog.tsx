@@ -1,7 +1,9 @@
+import { useEffect, useState } from "react";
 import { Bike, Clock3, Star } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import type { Restaurant } from "@/lib/types";
-import { defaultRestaurantMenu, restaurantMenuById } from "@/lib/mocks/restaurantMenu.mock";
+import type { RestaurantMenuItem } from "@/lib/types";
+import { restaurantService } from "@/lib/services/restaurantService";
 
 interface RestaurantPreviewDialogProps {
   restaurant: Restaurant | null;
@@ -10,7 +12,17 @@ interface RestaurantPreviewDialogProps {
 }
 
 export const RestaurantPreviewDialog = ({ restaurant, open, onOpenChange }: RestaurantPreviewDialogProps) => {
-  const menuItems = restaurant ? restaurantMenuById[restaurant.id] ?? defaultRestaurantMenu : [];
+  const [menuItems, setMenuItems] = useState<RestaurantMenuItem[]>([]);
+  const [menuLoading, setMenuLoading] = useState(false);
+
+  useEffect(() => {
+    if (!restaurant) return;
+    setMenuLoading(true);
+    restaurantService
+      .getMenuItems(restaurant.id)
+      .then(setMenuItems)
+      .finally(() => setMenuLoading(false));
+  }, [restaurant?.id]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -49,22 +61,37 @@ export const RestaurantPreviewDialog = ({ restaurant, open, onOpenChange }: Rest
 
             <div className="space-y-3">
               <h3 className="text-base font-semibold text-gray-900">Menu destacado</h3>
-              <div className="space-y-3">
-                {menuItems.map((item) => (
-                  <div key={item.id} className="flex gap-3 rounded-lg border border-gray-200 p-3">
-                    <img
-                      src={item.image}
-                      alt={item.name}
-                      className="h-20 w-24 rounded-md object-cover"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium text-gray-900">{item.name}</p>
-                      <p className="text-sm text-gray-600">{item.description}</p>
-                      <p className="mt-1 text-sm font-semibold text-blue-700">{item.price}</p>
+              {menuLoading ? (
+                <div className="space-y-3">
+                  {Array.from({ length: 2 }).map((_, i) => (
+                    <div key={i} className="flex gap-3 rounded-lg border border-gray-200 p-3">
+                      <div className="h-20 w-24 animate-pulse rounded-md bg-gray-100" />
+                      <div className="flex-1 space-y-2 pt-1">
+                        <div className="h-4 w-1/2 animate-pulse rounded bg-gray-100" />
+                        <div className="h-3 w-3/4 animate-pulse rounded bg-gray-100" />
+                        <div className="h-3 w-1/4 animate-pulse rounded bg-gray-100" />
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {menuItems.map((item) => (
+                    <div key={item.id} className="flex gap-3 rounded-lg border border-gray-200 p-3">
+                      <img
+                        src={item.image}
+                        alt={item.name}
+                        className="h-20 w-24 rounded-md object-cover"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-gray-900">{item.name}</p>
+                        <p className="text-sm text-gray-600">{item.description}</p>
+                        <p className="mt-1 text-sm font-semibold text-blue-700">{item.price}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}

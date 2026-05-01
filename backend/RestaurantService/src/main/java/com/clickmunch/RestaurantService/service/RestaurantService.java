@@ -152,6 +152,7 @@ public class RestaurantService {
             String badge = profile != null ? profile.getBadge() : null;
             Double latitude = profile != null && profile.getLatitude() != null ? profile.getLatitude() : 4.711;
             Double longitude = profile != null && profile.getLongitude() != null ? profile.getLongitude() : -74.0721;
+            Boolean freeShipping = profile != null && Boolean.TRUE.equals(profile.getFreeShipping());
 
             return new RestaurantCardResponse(
                     restaurant.getId(),
@@ -164,7 +165,8 @@ public class RestaurantService {
                     category,
                     city,
                     latitude,
-                    longitude
+                    longitude,
+                    freeShipping
             );
         }).toList();
     }

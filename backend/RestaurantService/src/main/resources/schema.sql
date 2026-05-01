@@ -95,4 +95,9 @@ VALUES
     (1010, 'Pollo', 'Medellin', '$ 3.000', '34 min', 'Envio Gratis: Aplican TyC', 4.7, 6.251840, -75.563591)
 ON CONFLICT (restaurant_id) DO NOTHING;
 
+ALTER TABLE restaurant_profiles ADD COLUMN IF NOT EXISTS free_shipping BOOLEAN DEFAULT FALSE;
+
+UPDATE restaurant_profiles SET free_shipping = TRUE
+WHERE badge LIKE '%Envio Gratis%' AND free_shipping = FALSE;
+
 SELECT setval('restaurants_id_seq', GREATEST((SELECT COALESCE(MAX(id), 1) FROM restaurants), 1));
