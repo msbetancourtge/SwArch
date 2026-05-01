@@ -88,7 +88,7 @@ public class AuthService {
             return new ApiResponse<>("Your account has been rejected", null);
         }
 
-        String token = jwtTokenUtil.generateToken(user.getId(), user.getUsername(), user.getRole().name());
+        String token = jwtTokenUtil.generateToken(user.getId(), user.getUsername(), user.getRole().name(), user.getName());
         return new ApiResponse<>("Login successful", token);
     }
 

@@ -1,17 +1,11 @@
-// Auth Service - Conexión con backend AuthService (puerto 8081)
+// Auth Service - Conexión con backend AuthService vía API Gateway
 
-const AUTH_API_BASE = import.meta.env.VITE_AUTH_API_BASE ?? "http://localhost:8081";
+const AUTH_API_BASE = import.meta.env.VITE_AUTH_API_BASE ?? "http://localhost:8080";
 
 // Tipos de respuesta del backend
 interface ApiResponse<T> {
   message: string;
   data: T | null;
-}
-
-interface LoginResponseData {
-  token: string;
-  username: string;
-  role: string;
 }
 
 interface RegisterRequest {
@@ -63,36 +57,27 @@ export function isAuthenticated(): boolean {
 // Login
 export async function login(username: string, password: string): Promise<{ success: boolean; message: string; user?: { username: string; role: string } }> {
   try {
-    const res = await fetch(`${AUTH_API_BASE}/api/auth/login`, {
+    const res = await fetch(`${AUTH_API_BASE}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password } as LoginRequest),
     });
 
-    const data: ApiResponse<LoginResponseData> = await res.json();
+    const data: ApiResponse<string> = await res.json();
 
     if (!res.ok || !data.data) {
       return { success: false, message: data.message || 'Error al iniciar sesión' };
     }
 
-    const { token, username: user, role } = data.data;
-    saveSession(token, { username: user, role });
+    const token = data.data;
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    const role: string = payload.role ?? 'CUSTOMER';
 
-    return { success: true, message: data.message, user: { username: user, role } };
+    saveSession(token, { username, role });
+    return { success: true, message: data.message, user: { username, role } };
   } catch (error) {
-    console.error('Login error (usando modo desarrollo):', error);
-    
-    // MODO DESARROLLO: Simular autenticación si el backend no está disponible
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    if (username === 'admin' && password === 'admin123') {
-      const mockUser = { username: 'admin', role: 'ADMIN' };
-      const mockToken = 'mock-token-' + Date.now();
-      saveSession(mockToken, mockUser);
-      return { success: true, message: 'Login exitoso (modo desarrollo)', user: mockUser };
-    }
-    
-    return { success: false, message: 'Credenciales inválidas' };
+    console.error('Login error:', error);
+    return { success: false, message: 'Error de conexión con el servidor' };
   }
 }
 
@@ -104,7 +89,7 @@ export async function register(
   password: string
 ): Promise<{ success: boolean; message: string }> {
   try {
-    const res = await fetch(`${AUTH_API_BASE}/api/auth/register`, {
+    const res = await fetch(`${AUTH_API_BASE}/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

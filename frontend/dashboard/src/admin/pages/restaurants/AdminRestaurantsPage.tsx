@@ -9,6 +9,7 @@ import type { Restaurant } from "@/lib/types";
 export const AdminRestaurantsPage = () => {
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [loading, setLoading] = useState(true);
+  const [apiError, setApiError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"list" | "map">("list");
   const [search, setSearch] = useState("");
   const [cityFilter, setCityFilter] = useState("all");
@@ -17,11 +18,14 @@ export const AdminRestaurantsPage = () => {
   useEffect(() => {
     const loadRestaurants = async () => {
       setLoading(true);
+      setApiError(null);
       try {
         const data = await restaurantService.getAll();
         setRestaurants(data);
       } catch (error) {
-        console.error("Error loading restaurants:", error);
+        const msg = error instanceof Error ? error.message : String(error);
+        console.error("Error loading restaurants:", msg);
+        setApiError(msg);
       } finally {
         setLoading(false);
       }
@@ -117,6 +121,12 @@ export const AdminRestaurantsPage = () => {
         <p className="text-sm text-gray-600">
           {loading ? "Cargando restaurantes..." : `Restaurantes cerca de tu ubicacion (${filteredRestaurants.length})`}
         </p>
+
+        {apiError && (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            Error al cargar restaurantes: <span className="font-mono">{apiError}</span>
+          </div>
+        )}
 
         {loading ? (
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
