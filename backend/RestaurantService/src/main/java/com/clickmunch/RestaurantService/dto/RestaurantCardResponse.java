@@ -12,7 +12,8 @@ public record RestaurantCardResponse(
         String city,
         Double latitude,
         Double longitude,
-        Boolean freeShipping
+        Boolean freeShipping,
+        Double distanceKm
 ) {
 }
 

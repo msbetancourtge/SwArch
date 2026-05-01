@@ -15,6 +15,7 @@ interface RestaurantCardApiResponse {
   city?: string;
   latitude?: number;
   longitude?: number;
+  distanceKm?: number;
 }
 
 interface MenuItemApiResponse {
@@ -38,6 +39,7 @@ const normalizeRestaurant = (item: RestaurantCardApiResponse): Restaurant => ({
   city: item.city ?? "Bogota",
   latitude: typeof item.latitude === "number" ? item.latitude : 4.711,
   longitude: typeof item.longitude === "number" ? item.longitude : -74.0721,
+  distanceKm: typeof item.distanceKm === "number" ? item.distanceKm : undefined,
 });
 
 const formatPrice = (price: number | string | undefined): string => {
@@ -47,9 +49,13 @@ const formatPrice = (price: number | string | undefined): string => {
 };
 
 export const restaurantService = {
-  async getAll(): Promise<Restaurant[]> {
+  async getAll(lat?: number, lng?: number): Promise<Restaurant[]> {
     const token = localStorage.getItem("auth_token");
-    const response = await fetch(`${API_GATEWAY_BASE}/restaurant/cards`, {
+    const params = new URLSearchParams();
+    if (lat !== undefined) params.set("lat", String(lat));
+    if (lng !== undefined) params.set("lng", String(lng));
+    const query = params.toString() ? `?${params}` : "";
+    const response = await fetch(`${API_GATEWAY_BASE}/restaurant/cards${query}`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);

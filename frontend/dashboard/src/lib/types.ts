@@ -91,6 +91,7 @@ export interface Restaurant {
   status?: 'Activo' | 'Inactivo';
   latitude: number;
   longitude: number;
+  distanceKm?: number;
 }
 
 // Categorías de productos
