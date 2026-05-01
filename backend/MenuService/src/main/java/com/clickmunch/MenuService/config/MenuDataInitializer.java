@@ -24,6 +24,11 @@ public class MenuDataInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
+        seedOriginal();
+        seedExpansion();
+    }
+
+    private void seedOriginal() {
         if (!categoryRepo.findByRestaurantId(1001L).isEmpty()) return;
 
         seed(1001L, Category.PLATO, List.of(
@@ -114,6 +119,80 @@ public class MenuDataInitializer implements CommandLineRunner {
                 "https://images.unsplash.com/photo-1598514983318-2f64f8f4796c?w=900&h=600&fit=crop&auto=format"),
             item("Alitas Picantes (10 pzas)", "Alitas de pollo marinadas en salsa picante con ranch.", new BigDecimal("24000"),
                 "https://images.unsplash.com/photo-1567620832903-9fc6debc209f?w=900&h=600&fit=crop&auto=format")
+        ));
+    }
+
+    private void seedExpansion() {
+        if (!categoryRepo.findByRestaurantId(1019L).isEmpty()) return;
+
+        // 1019 - Tickets (Tapas, Barcelona)
+        seed(1019L, Category.ENTRADA, List.of(
+            item("Oliva esferica con vermut", "La celebre oliva esferica de Tickets con vermut rojo y anchoa.", new BigDecimal("22"),
+                "https://images.unsplash.com/photo-1525648199074-cee30ba79a4a?w=900&h=600&fit=crop&auto=format"),
+            item("Bunuelos de bacalao", "Bunuelos dorados de bacalao desalado con alioli de ajo negro.", new BigDecimal("16"),
+                "https://images.unsplash.com/photo-1515443961218-a51367888e4b?w=900&h=600&fit=crop&auto=format"),
+            item("Bravas innovadas", "Patatas con salsa roja picante y alioli ahumado al momento.", new BigDecimal("12"),
+                "https://images.unsplash.com/photo-1573080496219-bb080dd4f877?w=900&h=600&fit=crop&auto=format")
+        ));
+
+        // 1020 - Sala de Despiece (Espanola, Madrid)
+        seed(1020L, Category.PLATO, List.of(
+            item("Huevo frito sobre rabo de toro", "Huevo en aceite de arbequina sobre rabo de toro estofado.", new BigDecimal("18"),
+                "https://images.unsplash.com/photo-1515443961218-a51367888e4b?w=900&h=600&fit=crop&auto=format"),
+            item("Steak tartare de Angus", "Carne cruda de angus con mostaza antigua, alcaparras y tosta.", new BigDecimal("22"),
+                "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=900&h=600&fit=crop&auto=format"),
+            item("Queso payoyo con trufa", "Queso artesanal andaluz con laminas de trufa negra y miel de romero.", new BigDecimal("14"),
+                "https://images.unsplash.com/photo-1525648199074-cee30ba79a4a?w=900&h=600&fit=crop&auto=format")
+        ));
+
+        // 1021 - Zuma (Japonesa, Miami)
+        seed(1021L, Category.PLATO, List.of(
+            item("Robata de Wagyu", "Costillas de wagyu a la brasa con tare de miso y citricos.", new BigDecimal("42"),
+                "https://images.unsplash.com/photo-1569050467447-ce54b3bbc37d?w=900&h=600&fit=crop&auto=format"),
+            item("Tiradito de Yellowtail", "Pez limon fresco en ponzu con jalapeño y aceite de trufa.", new BigDecimal("28"),
+                "https://images.unsplash.com/photo-1553621042-f6e147245754?w=900&h=600&fit=crop&auto=format"),
+            item("Gyoza de Cangrejo (6 pzas)", "Dumplings al vapor rellenos de cangrejo real con ponzu.", new BigDecimal("22"),
+                "https://images.unsplash.com/photo-1617196034183-421b4040ed20?w=900&h=600&fit=crop&auto=format")
+        ));
+
+        // 1022 - Cosme (Mexicana, New York)
+        seed(1022L, Category.PLATO, List.of(
+            item("Duck Carnitas", "Pato confitado deshebrado con habanero, pickles y tortilla de maiz.", new BigDecimal("32"),
+                "https://images.unsplash.com/photo-1565299507177-b0ac66763828?w=900&h=600&fit=crop&auto=format"),
+            item("Shrimp Aguachile", "Camarones en aguachile verde intenso con pepino y cebolla morada.", new BigDecimal("26"),
+                "https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=900&h=600&fit=crop&auto=format"),
+            item("Husk Tamale", "Tamal de elote tierno con queso Oaxaca, hongos silvestres y epazote.", new BigDecimal("20"),
+                "https://images.unsplash.com/photo-1551504734-5ee1c4a1479b?w=900&h=600&fit=crop&auto=format")
+        ));
+
+        // 1023 - Mocoto (Brasilena, Sao Paulo)
+        seed(1023L, Category.PLATO, List.of(
+            item("Mocofava", "Guiso nordestino de patas de res con fava, embutidos y farofa.", new BigDecimal("55"),
+                "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=900&h=600&fit=crop&auto=format"),
+            item("Baiao de Dois", "Arroz con frijol, queso coalho, charque y manteiga de garrafa.", new BigDecimal("48"),
+                "https://images.unsplash.com/photo-1493770348161-369560ae357d?w=900&h=600&fit=crop&auto=format"),
+            item("Caldo de Mocoto", "Caldo nutritivo de pata de res con jengibre, verduras y limao.", new BigDecimal("42"),
+                "https://images.unsplash.com/photo-1547592180-85f173990554?w=900&h=600&fit=crop&auto=format")
+        ));
+
+        // 1024 - Brasserie Flo (Francesa, Paris)
+        seed(1024L, Category.PLATO, List.of(
+            item("Escargots de Bourgogne", "6 caracoles de Borgona con mantequilla de ajo, perejil y pan.", new BigDecimal("28"),
+                "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=900&h=600&fit=crop&auto=format"),
+            item("Steak frites maison", "Entrecote de res con papas fritas y beurre maitre d hotel.", new BigDecimal("32"),
+                "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=900&h=600&fit=crop&auto=format"),
+            item("Creme brulee classique", "Clasico postre frances con crema de vainilla de Madagascar y caramelo.", new BigDecimal("14"),
+                "https://images.unsplash.com/photo-1533134242443-d4fd215305ad?w=900&h=600&fit=crop&auto=format")
+        ));
+
+        // 1025 - Narisawa (Japonesa, Tokyo)
+        seed(1025L, Category.PLATO, List.of(
+            item("Satoyama Scenery", "Composicion de verduras de temporada del campo de montana japones.", new BigDecimal("8500"),
+                "https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=900&h=600&fit=crop&auto=format"),
+            item("Charcoal Bread", "Pan de carbon vegetal artesanal con mantequilla de trufa negra.", new BigDecimal("3200"),
+                "https://images.unsplash.com/photo-1484723091739-30a097e8f929?w=900&h=600&fit=crop&auto=format"),
+            item("Forest Lamb", "Cordero de Hokkaido con tierra comestible de champinones y hierbas.", new BigDecimal("12000"),
+                "https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=900&h=600&fit=crop&auto=format")
         ));
     }
 
