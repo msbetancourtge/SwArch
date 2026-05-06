@@ -74,6 +74,7 @@ export interface RestaurantMenuItem {
   name: string;
   description: string;
   price: string;
+  priceNumber?: number;
   image: string;
 }
 

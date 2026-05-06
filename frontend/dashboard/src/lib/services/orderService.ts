@@ -1,7 +1,23 @@
 ﻿import type { Order, OrderItem, CreateOrderDTO, UpdateOrderDTO, OrderStatus } from '@/lib/types';
 
-// TODO: Conectar con el backend - OrderService (puerto 8083)
-// URL base: http://localhost:8083/api/orders
+const API_GATEWAY_BASE = import.meta.env.VITE_API_GATEWAY_BASE ?? "http://localhost:8080";
+
+export interface PlaceOrderItem {
+  menuItemId: string;
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+}
+
+export interface PlaceOrderData {
+  customerId: number;
+  customerName: string;
+  restaurantId: number;
+  restaurantName: string;
+  channel: string;
+  notes?: string;
+  items: PlaceOrderItem[];
+}
 
 let mockOrders: Order[] = [
   {
@@ -114,6 +130,23 @@ export const orderService = {
   async getByStatus(status: OrderStatus): Promise<Order[]> {
     await delay(300);
     return mockOrders.filter(o => o.status === status);
+  },
+
+  async placeOrder(data: PlaceOrderData): Promise<{ id: number }> {
+    const token = localStorage.getItem("auth_token");
+    const response = await fetch(`${API_GATEWAY_BASE}/order`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const text = await response.text().catch(() => '');
+      throw new Error(`HTTP ${response.status}${text ? `: ${text}` : ''}`);
+    }
+    return response.json() as Promise<{ id: number }>;
   },
 };
 

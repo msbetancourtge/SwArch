@@ -114,6 +114,23 @@ export async function register(
   }
 }
 
+// Decode JWT payload claims
+export function getTokenPayload(): { userId: number; username: string; role: string; name: string } | null {
+  const token = localStorage.getItem(TOKEN_KEY);
+  if (!token) return null;
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return {
+      userId: Number(payload.userId),
+      username: payload.username ?? payload.sub ?? '',
+      role: payload.role ?? 'CUSTOMER',
+      name: payload.name ?? payload.username ?? payload.sub ?? '',
+    };
+  } catch {
+    return null;
+  }
+}
+
 // Logout
 export function logout() {
   clearSession();

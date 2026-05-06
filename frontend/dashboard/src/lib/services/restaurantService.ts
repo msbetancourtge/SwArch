@@ -71,12 +71,22 @@ export const restaurantService = {
     if (!response.ok) return [];
     const data = (await response.json()) as MenuItemApiResponse[];
     if (!Array.isArray(data)) return [];
-    return data.map((item) => ({
-      id: item.id,
-      name: item.name ?? "Plato",
-      description: item.description ?? "",
-      price: formatPrice(item.price),
-      image: item.imageUrl ?? "",
-    }));
+    return data.map((item) => {
+      const raw = item.price;
+      const priceNumber =
+        typeof raw === "number"
+          ? raw
+          : typeof raw === "string" && raw !== ""
+            ? parseFloat(raw)
+            : undefined;
+      return {
+        id: item.id,
+        name: item.name ?? "Plato",
+        description: item.description ?? "",
+        price: formatPrice(item.price),
+        priceNumber: priceNumber != null && !isNaN(priceNumber) ? priceNumber : undefined,
+        image: item.imageUrl ?? "",
+      };
+    });
   },
 };
