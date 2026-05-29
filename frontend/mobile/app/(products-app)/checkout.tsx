@@ -37,8 +37,10 @@ export default function CheckoutScreen() {
     setIsSubmitting(true);
 
     const order = await createOrder({
-      customerId: user.id,
-      restaurantId,
+      customerId: user.id!,
+      customerName: user.name || user.username || '',
+      restaurantId: restaurantId!,
+      restaurantName: restaurantName || '',
       channel: 'In-person',
       notes: notes.trim() || undefined,
       items: items.map((i) => ({
@@ -46,9 +48,7 @@ export default function CheckoutScreen() {
         productName: i.menuItem.name,
         quantity: i.quantity,
         unitPrice: i.menuItem.price,
-        subtotal: i.menuItem.price * i.quantity,
       })),
-      total: getTotal(),
     });
 
     setIsSubmitting(false);

@@ -68,7 +68,7 @@ public class RouteConfig {
         RouterFunction<ServerResponse> order = route("order")
                 .route(path("/order/**"), http())
                 .before(uri(orderServiceUrl))
-                .before(rewritePath("/order/(?<segment>.*)", "/api/orders/${segment}"))
+                .before(rewritePath("/order(?<segment>.*)", "/api/orders${segment}"))
                 .filter(jwtAuthenticationFilter)
                 .build();
         RouterFunction<ServerResponse> reservation = route("reservation")

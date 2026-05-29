@@ -28,9 +28,11 @@ import com.clickmunch.OrderService.repository.OrderRepository;
 import com.clickmunch.OrderService.repository.WaiterCallRepository;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class OrderService {
 
     private final OrderRepository orderRepository;
@@ -78,10 +80,13 @@ public class OrderService {
 
         List<OrderItem> savedItems = orderItemRepository.saveAll(items);
 
-        // Publish async event for notifications
-        eventPublisher.publishOrderCreated(OrderEvent.created(
-                savedOrder.getId(), savedOrder.getCustomerId(), savedOrder.getCustomerName(),
-                savedOrder.getRestaurantId(), savedOrder.getRestaurantName(), total));
+        try {
+            eventPublisher.publishOrderCreated(OrderEvent.created(
+                    savedOrder.getId(), savedOrder.getCustomerId(), savedOrder.getCustomerName(),
+                    savedOrder.getRestaurantId(), savedOrder.getRestaurantName(), total));
+        } catch (Exception e) {
+            log.warn("Failed to publish order.created event for order {}: {}", savedOrder.getId(), e.getMessage());
+        }
 
         return toResponse(savedOrder, savedItems);
     }
@@ -164,11 +169,14 @@ public class OrderService {
         Order updated = orderRepository.save(order);
         List<OrderItem> items = orderItemRepository.findByOrderId(id);
 
-        // Publish async event for notifications
-        eventPublisher.publishOrderStatusChanged(OrderEvent.statusChanged(
-                updated.getId(), updated.getCustomerId(), updated.getCustomerName(),
-                updated.getRestaurantId(), updated.getRestaurantName(),
-                newStatus.name(), previousStatus, updated.getTotal()));
+        try {
+            eventPublisher.publishOrderStatusChanged(OrderEvent.statusChanged(
+                    updated.getId(), updated.getCustomerId(), updated.getCustomerName(),
+                    updated.getRestaurantId(), updated.getRestaurantName(),
+                    newStatus.name(), previousStatus, updated.getTotal()));
+        } catch (Exception e) {
+            log.warn("Failed to publish order.status.changed event for order {}: {}", updated.getId(), e.getMessage());
+        }
 
         return toResponse(updated, items);
     }
