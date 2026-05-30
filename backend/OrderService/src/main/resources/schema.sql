@@ -59,7 +59,7 @@ ALTER TABLE IF EXISTS order_items
     ADD COLUMN IF NOT EXISTS notes TEXT;
 
 UPDATE order_items
-SET item_name = COALESCE(item_name, product_name, 'UNKNOWN')
+SET item_name = 'UNKNOWN'
 WHERE item_name IS NULL;
 
 ALTER TABLE IF EXISTS order_items

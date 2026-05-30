@@ -67,3 +67,9 @@ bin/
 
 # GitHub metadata and Copilot project instructions
 .github/
+
+# Environment files (contain credentials)
+/backend/.env
+
+# pnpm lock file (team uses npm)
+pnpm-lock.yaml
