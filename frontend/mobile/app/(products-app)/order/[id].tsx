@@ -13,19 +13,19 @@ import { useOrder } from '@/presentation/orders/hooks/useOrder';
 import type { OrderStatus } from '@/core/orders/interface/order';
 
 const statusColors: Record<OrderStatus, string> = {
-  Preparing: '#f39c12',
-  Ready: '#3498db',
-  Served: '#2ecc71',
-  Delivered: '#27ae60',
-  Cancelled: '#e74c3c',
+  PENDING: '#f39c12',
+  IN_PREPARATION: '#f39c12',
+  READY: '#3498db',
+  DELIVERED: '#27ae60',
+  CANCELLED: '#e74c3c',
 };
 
 const statusLabels: Record<OrderStatus, string> = {
-  Preparing: 'Preparando',
-  Ready: 'Listo',
-  Served: 'Servido',
-  Delivered: 'Entregado',
-  Cancelled: 'Cancelado',
+  PENDING: 'Pendiente',
+  IN_PREPARATION: 'Preparando',
+  READY: 'Listo',
+  DELIVERED: 'Entregado',
+  CANCELLED: 'Cancelado',
 };
 
 export default function OrderDetailScreen() {
@@ -66,9 +66,9 @@ export default function OrderDetailScreen() {
           >
             <Ionicons
               name={
-                order.status === 'Cancelled'
+                order.status === 'CANCELLED'
                   ? 'close-circle'
-                  : order.status === 'Delivered'
+                  : order.status === 'DELIVERED'
                   ? 'checkmark-circle'
                   : 'time'
               }
@@ -96,8 +96,7 @@ export default function OrderDetailScreen() {
                 })
               : 'N/A'
           } />
-          <InfoRow icon="pricetag-outline" label="Canal" value={order.channel} />
-          {order.eta && <InfoRow icon="timer-outline" label="ETA" value={order.eta} />}
+          <InfoRow icon="restaurant-outline" label="Mesa" value={String(order.tableNumber)} />
           {order.notes && (
             <InfoRow icon="document-text-outline" label="Notas" value={order.notes} />
           )}
@@ -111,24 +110,15 @@ export default function OrderDetailScreen() {
           {order.items?.map((item, index) => (
             <View key={item.id ?? index} style={styles.itemRow}>
               <View style={{ flex: 1 }}>
-                <ThemedText type="defaultSemiBold">{item.productName}</ThemedText>
-                <ThemedText style={{ color: '#999', fontSize: 13 }}>
-                  {item.quantity} × ${item.unitPrice.toFixed(2)}
-                </ThemedText>
+                <ThemedText type="defaultSemiBold">{item.itemName}</ThemedText>
+                {item.notes && (
+                  <ThemedText style={{ color: '#999', fontSize: 13 }}>
+                    {item.notes}
+                  </ThemedText>
+                )}
               </View>
-              <ThemedText type="defaultSemiBold">
-                ${item.subtotal.toFixed(2)}
-              </ThemedText>
             </View>
           ))}
-        </View>
-
-        {/* Total */}
-        <View style={styles.totalContainer}>
-          <ThemedText style={{ fontSize: 16 }}>Total</ThemedText>
-          <ThemedText type="title" style={{ fontSize: 24 }}>
-            ${order.total.toFixed(2)}
-          </ThemedText>
         </View>
       </ScrollView>
     </ThemedView>

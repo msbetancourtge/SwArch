@@ -103,6 +103,14 @@ export interface Table {
   status: 'AVAILABLE' | 'OCCUPIED' | 'RESERVED' | 'CLEANING';
 }
 
+export interface TableApiResponse {
+  id: number;
+  restaurantId: number;
+  tableNumber: string;
+  seats: number;
+  status: string;
+}
+
 export interface OperatingHours {
   id?: number;
   dayOfWeek: 'MONDAY' | 'TUESDAY' | 'WEDNESDAY' | 'THURSDAY' | 'FRIDAY' | 'SATURDAY' | 'SUNDAY';

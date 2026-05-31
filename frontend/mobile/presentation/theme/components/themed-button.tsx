@@ -4,7 +4,7 @@ import { useThemeColor } from '../hooks/use-theme-color';
 
 interface Props extends PressableProps {
     children: string;
-    icon?: keyof typeof Ionicons.getRawGlyphMap;
+    icon?: keyof typeof Ionicons.glyphMap;
 }
 
 const ThemedButton = ({ children, icon, ...rest}: Props) => {

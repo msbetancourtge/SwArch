@@ -37,18 +37,13 @@ export default function CheckoutScreen() {
     setIsSubmitting(true);
 
     const order = await createOrder({
-      customerId: user.id,
       restaurantId,
-      channel: 'In-person',
-      notes: notes.trim() || undefined,
+      tableNumber: 0,
+      notes: notes.trim() || null,
       items: items.map((i) => ({
-        menuItemId: i.menuItem.id,
-        productName: i.menuItem.name,
-        quantity: i.quantity,
-        unitPrice: i.menuItem.price,
-        subtotal: i.menuItem.price * i.quantity,
+        itemName: `${i.quantity}× ${i.menuItem.name}`,
+        notes: null,
       })),
-      total: getTotal(),
     });
 
     setIsSubmitting(false);
@@ -145,7 +140,7 @@ export default function CheckoutScreen() {
           <ActivityIndicator size="large" color={primaryColor} />
         ) : (
           <ThemedButton onPress={handleSubmitOrder} icon="checkmark-circle-outline">
-            Confirmar pedido — ${getTotal().toFixed(2)}
+            {`Confirmar pedido — $${getTotal().toFixed(2)}`}
           </ThemedButton>
         )}
       </View>
