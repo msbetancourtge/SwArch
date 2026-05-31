@@ -1,4 +1,4 @@
-// Auth Service - Conexión con backend AuthService (puerto 8081)
+// Auth Service - Conexión con backend AuthService vía API Gateway
 
 // Cambia 8081 por el puerto de tu Gateway (ej: 8080)
 const AUTH_API_BASE =
@@ -264,6 +264,23 @@ export async function getOwnerRestaurantId(): Promise<number | null> {
     }
 
     return null;
+  } catch {
+    return null;
+  }
+}
+
+// Decode JWT payload claims
+export function getTokenPayload(): { userId: number; username: string; role: string; name: string } | null {
+  const token = localStorage.getItem(TOKEN_KEY);
+  if (!token) return null;
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return {
+      userId: Number(payload.userId),
+      username: payload.username ?? payload.sub ?? '',
+      role: payload.role ?? 'CUSTOMER',
+      name: payload.name ?? payload.username ?? payload.sub ?? '',
+    };
   } catch {
     return null;
   }

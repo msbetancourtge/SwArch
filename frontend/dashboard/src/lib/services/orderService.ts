@@ -11,6 +11,24 @@ const getHeaders = () => {
   };
 };
 
+export interface PlaceOrderItem {
+  menuItemId: string;
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+}
+
+export interface PlaceOrderData {
+  customerId: number;
+  customerName: string;
+  restaurantId: number;
+  restaurantName: string;
+  channel: string;
+  notes?: string;
+  items: PlaceOrderItem[];
+}
+
+
 // 🎯 Estados activos
 const ACTIVE_STATUS: OrderStatus[] = [
   "Pending",
@@ -160,5 +178,40 @@ export const orderService = {
   // 🧪 Debug
   logOrder(order: Order) {
     console.log("📦 ORDER:", order);
+  },
+
+  // 🛒 Crear pedido desde el dashboard (mapea al contrato real del backend)
+  async placeOrder(data: PlaceOrderData): Promise<{ id: number }> {
+    // El backend espera una entrada por unidad: { itemName, notes }.
+    // Expandimos cada item del carrito según su cantidad.
+    const items = data.items.flatMap((item) =>
+      Array.from({ length: Math.max(1, item.quantity) }, () => ({
+        itemName: item.productName,
+        notes: data.notes?.trim() || null,
+      }))
+    );
+
+    const payload = {
+      restaurantId: data.restaurantId,
+      tableNumber: 0,
+      notes: data.notes?.trim() || null,
+      items,
+    };
+
+    const res = await fetch(`${API}/order`, {
+      method: "POST",
+      headers: getHeaders(),
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new Error(`HTTP ${res.status}${text ? `: ${text}` : ""}`);
+    }
+
+    const json = await res.json();
+    // El backend devuelve ApiResponse<OrderResponse> => { message, data: { id, ... } }
+    const id = json?.data?.id ?? json?.id;
+    return { id };
   },
 };

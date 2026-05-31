@@ -57,6 +57,15 @@ export interface UpdateOrderDTO {
 // RESTAURANTE
 // =======================
 
+export interface RestaurantMenuItem {
+  id: string;
+  name: string;
+  description: string;
+  price: string;
+  priceNumber?: number;
+  image: string;
+}
+
 export interface Restaurant {
   id: string;
   name: string;
@@ -65,11 +74,13 @@ export interface Restaurant {
   deliveryTime: string;
   price: string;
   badge?: string;
+  freeShipping?: boolean;
   category?: string;
   city?: string;
   status?: 'Activo' | 'Inactivo';
   latitude: number;
   longitude: number;
+  distanceKm?: number;
 }
 
 // =======================

@@ -66,8 +66,10 @@ public class RestaurantController {
     }
 
     @GetMapping("/cards")
-    public ResponseEntity<List<RestaurantCardResponse>> getRestaurantCards() {
-        return ResponseEntity.ok(restaurantService.listRestaurantCards());
+    public ResponseEntity<List<RestaurantCardResponse>> getRestaurantCards(
+            @RequestParam(required = false) Double lat,
+            @RequestParam(required = false) Double lng) {
+        return ResponseEntity.ok(restaurantService.listRestaurantCards(lat, lng));
     }
 
     @GetMapping("/nearby")

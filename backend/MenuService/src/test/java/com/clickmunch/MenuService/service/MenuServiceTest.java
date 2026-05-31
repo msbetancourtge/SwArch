@@ -186,7 +186,7 @@ class MenuServiceTest {
         void shouldCreateMenuItem() {
             String categoryId = "cat10";
             MenuItemRequest request = new MenuItemRequest(
-                    "Pizza", "Delicious pizza", BigDecimal.valueOf(12.99), "http://example.com/pizza.jpg"
+                    "Pizza", "Delicious pizza", BigDecimal.valueOf(12.99), "http://example.com/pizza.jpg", null, null, null
             );
             MenuItem savedItem = createMenuItem("item100", categoryId, "Pizza", BigDecimal.valueOf(12.99));
 
@@ -210,7 +210,7 @@ class MenuServiceTest {
         void shouldCreateFullMenu() {
             Long restaurantId = 1L;
             MenuCreateRequest.ItemRequest itemReq = new MenuCreateRequest.ItemRequest(
-                    "Salad", "Fresh salad", BigDecimal.valueOf(7.99), "http://example.com/salad.jpg"
+                    "Salad", "Fresh salad", BigDecimal.valueOf(7.99), "http://example.com/salad.jpg", null, null, null
             );
             MenuCreateRequest.CategoryRequest categoryReq = new MenuCreateRequest.CategoryRequest(
                     Category.ENSALADA, List.of(itemReq)
@@ -404,7 +404,7 @@ class MenuServiceTest {
             String id = "item100";
             MenuItem existing = createMenuItem(id, "cat10", "Old Name", BigDecimal.valueOf(9.99));
             MenuItemRequest request = new MenuItemRequest(
-                    "New Name", "New Description", BigDecimal.valueOf(14.99), "http://new.jpg"
+                    "New Name", "New Description", BigDecimal.valueOf(14.99), "http://new.jpg", null, null, null
             );
 
             when(menuItemRepository.findById(id)).thenReturn(Optional.of(existing));
@@ -423,7 +423,7 @@ class MenuServiceTest {
         void shouldPreserveExistingWhenNull() {
             String id = "item100";
             MenuItem existing = createMenuItem(id, "cat10", "Original", BigDecimal.valueOf(9.99));
-            MenuItemRequest request = new MenuItemRequest(null, null, null, null);
+            MenuItemRequest request = new MenuItemRequest(null, null, null, null, null, null, null);
 
             when(menuItemRepository.findById(id)).thenReturn(Optional.of(existing));
             when(menuItemRepository.save(any(MenuItem.class)))

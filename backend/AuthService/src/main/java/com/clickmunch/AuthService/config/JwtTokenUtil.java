@@ -1,11 +1,17 @@
 package com.clickmunch.AuthService.config;
 
-import io.jsonwebtoken.*;
+import java.util.Date;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-import java.util.Date;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.MalformedJwtException;
+import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.UnsupportedJwtException;
 
 @Component
 public class JwtTokenUtil {
@@ -21,9 +27,8 @@ public class JwtTokenUtil {
                 .claim("userId", userId)
                 .claim("role", role)
                 .claim("name", name)
-                .claim("userId", userId)
                 .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + 3600_000))
+                .setExpiration(new Date(System.currentTimeMillis() + 86_400_000))
                 .signWith(SignatureAlgorithm.HS256, SecretKey)
                 .compact();
     }
