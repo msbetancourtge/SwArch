@@ -2,6 +2,9 @@ import type { Restaurant, RestaurantMenuItem } from "@/lib/types";
 
 const API_GATEWAY_BASE = import.meta.env.VITE_API_GATEWAY_BASE ?? "http://localhost:8080";
 
+const RESTAURANT_IMAGE_PLACEHOLDER = "https://placehold.co/600x400?text=Restaurante";
+const MENU_ITEM_IMAGE_PLACEHOLDER = "https://placehold.co/100x100?text=Plato";
+
 interface RestaurantCardApiResponse {
   id: number | string;
   name: string;
@@ -29,7 +32,7 @@ interface MenuItemApiResponse {
 const normalizeRestaurant = (item: RestaurantCardApiResponse): Restaurant => ({
   id: String(item.id),
   name: item.name ?? "Restaurante",
-  image: item.image ?? "",
+  image: item.image?.trim() ? item.image : RESTAURANT_IMAGE_PLACEHOLDER,
   rating: typeof item.rating === "number" ? item.rating : 4.0,
   deliveryTime: item.deliveryTime ?? "30 min",
   price: item.price ?? "$ 0",
@@ -85,7 +88,7 @@ export const restaurantService = {
         description: item.description ?? "",
         price: formatPrice(item.price),
         priceNumber: priceNumber != null && !isNaN(priceNumber) ? priceNumber : undefined,
-        image: item.imageUrl ?? "",
+        image: item.imageUrl?.trim() ? item.imageUrl : MENU_ITEM_IMAGE_PLACEHOLDER,
       };
     });
   },

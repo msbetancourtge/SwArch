@@ -95,6 +95,8 @@ VALUES
     (1010, 'Pollo', 'Medellin', '$ 3.000', '34 min', 'Envio Gratis: Aplican TyC', 4.7, 6.251840, -75.563591)
 ON CONFLICT (restaurant_id) DO NOTHING;
 
+ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS place_type VARCHAR(50) DEFAULT 'RESTAURANT';
+
 ALTER TABLE restaurant_profiles ADD COLUMN IF NOT EXISTS free_shipping BOOLEAN DEFAULT FALSE;
 
 UPDATE restaurant_profiles SET free_shipping = TRUE

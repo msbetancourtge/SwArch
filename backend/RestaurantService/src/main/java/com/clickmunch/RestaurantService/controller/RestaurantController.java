@@ -16,7 +16,6 @@ import org.springframework.web.bind.annotation.RestController;
 import com.clickmunch.RestaurantService.client.AuthClient;
 import com.clickmunch.RestaurantService.dto.CreateRestaurantRequest;
 import com.clickmunch.RestaurantService.dto.CreateTableRequest;
-import com.clickmunch.RestaurantService.dto.NearbySearchRequest;
 import com.clickmunch.RestaurantService.dto.OperatingHoursRequest;
 import com.clickmunch.RestaurantService.dto.OperatingHoursResponse;
 import com.clickmunch.RestaurantService.dto.RestaurantAdminRequest;
@@ -74,11 +73,13 @@ public class RestaurantController {
 
     @GetMapping("/nearby")
     public ResponseEntity<List<RestaurantResponse>> getNearbyRestaurants(
-            @RequestBody NearbySearchRequest nearbySearchRequest) {
+            @RequestParam Double latitude,
+            @RequestParam Double longitude,
+            @RequestParam(defaultValue = "5") Double radiusInKm) {
         var restaurants = restaurantService.findNearby(
-                nearbySearchRequest.latitude(),
-                nearbySearchRequest.longitude(),
-                nearbySearchRequest.radiusInKm());
+                latitude,
+                longitude,
+                radiusInKm);
         return ResponseEntity.ok(restaurants);
     }
 
