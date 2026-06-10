@@ -8,3 +8,8 @@ spring:
 
 jwt:
   secret: "test-only-jwt-secret-not-used-in-production-0123456789"
+
+app:
+  seed:
+    enabled: false
+
