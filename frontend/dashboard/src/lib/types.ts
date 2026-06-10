@@ -88,6 +88,7 @@ export interface Restaurant {
 // =======================
 
 export const PRODUCT_CATEGORIES = [
+  'Entrada',
   'Bebidas',
   'Ensaladas',
   'Platos fuertes',
@@ -98,6 +99,7 @@ export const PRODUCT_CATEGORIES = [
   'Pescados',
   'Vegetariano',
   'Vegano',
+  'Adicional'
 ] as const;
 
 export type ProductCategory = typeof PRODUCT_CATEGORIES[number];
@@ -150,7 +152,7 @@ export interface BackendMenuItem {
 export interface BackendMenuCategory {
   id: string;
   restaurantId: number;
-  category: "ENTRADA" | "PLATO" | "POSTRE" | "BEBIDA" | "ENSALADA" | "ADICIONAL";
+  category: "ENTRADA" | "PLATO_FUERTE" | "SOPA" | "POSTRE" | "BEBIDA" | "ENSALADA" | "APERITIVO" | "CARNE" | "PESCADO" | "VEGETARIANO" | "VEGANO" | "ADICIONAL";
 }
 
 export interface MenuRestaurantResponse {
