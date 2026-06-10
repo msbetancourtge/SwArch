@@ -39,6 +39,9 @@ export default function CheckoutScreen() {
     const order = await createOrder({
       restaurantId,
       tableNumber: 0,
+      customerId: user.id,
+      customerName: user.name || user.username || 'Cliente',
+      totalAmount: getTotal(),
       notes: notes.trim() || null,
       items: items.map((i) => ({
         itemName: `${i.quantity}× ${i.menuItem.name}`,

@@ -4,6 +4,7 @@ import java.util.Date;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import io.jsonwebtoken.Claims;
@@ -18,7 +19,11 @@ public class JwtTokenUtil {
 
     private static final Logger logger = LoggerFactory.getLogger(JwtTokenUtil.class);
 
-    private static final String SecretKey = "1245789630ClickAndMunchSuperSecretKey1245789630";
+    private final String SecretKey;
+
+    public JwtTokenUtil(@Value("${jwt.secret}") String secretKey) {
+        this.SecretKey = secretKey;
+    }
 
     public String generateToken(Long userId, String username, String role, String name) {
         logger.info("Generating token for username {} and role {}", username, role);

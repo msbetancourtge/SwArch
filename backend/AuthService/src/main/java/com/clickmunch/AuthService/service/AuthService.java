@@ -244,6 +244,17 @@ public class AuthService {
         return toResponse(saved);
     }
 
+    public ApiResponse<String> changePassword(Long id, com.clickmunch.AuthService.dto.ChangePasswordRequest request) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + id));
+        if (!passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
+            return new ApiResponse<>("Current password is incorrect", null);
+        }
+        user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+        userRepository.save(user);
+        return new ApiResponse<>("Password updated successfully", null);
+    }
+
     public List<UserInfoResponse> getUsersByRole(Role role) {
         return userRepository.findByRole(role).stream()
                 .map(this::toResponse).toList();

@@ -72,6 +72,12 @@ function OrderCard({ order }: { order: Order }) {
             {order.items?.length ?? 0} artículo{(order.items?.length ?? 0) !== 1 ? 's' : ''}
           </ThemedText>
         </View>
+        <View style={styles.infoRow}>
+          <Ionicons name="cash-outline" size={16} color="#999" />
+          <ThemedText style={styles.infoText}>
+            ${Number(order.totalAmount ?? 0).toFixed(2)}
+          </ThemedText>
+        </View>
       </View>
 
       <View style={styles.cardFooter}>

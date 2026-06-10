@@ -65,5 +65,23 @@ bin/
 # VS Code
 .vscode/
 
+# Secrets / environment files — never commit real credentials.
+# Only *.example / *.template files are tracked.
+.env
+*.env
+!*.env.example
+!*.env.template
+!.env.example
+!.env.template
+
+# Python virtual environments
+.venv/
+**/.venv/
+__pycache__/
+**/__pycache__/
+*.pyc
+.pytest_cache/
+**/.pytest_cache/
+
 # GitHub metadata and Copilot project instructions
 .github/

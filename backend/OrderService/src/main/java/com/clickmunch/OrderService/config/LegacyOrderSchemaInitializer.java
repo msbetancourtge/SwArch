@@ -20,7 +20,9 @@ public class LegacyOrderSchemaInitializer implements ApplicationRunner {
     }
 
     private void applyOrderCompatibility() {
-        if (!columnExists("orders", "customer_id")) {
+        // Guard on a legacy-only column so this never runs against a freshly
+        // created (current-schema) database, which lacks restaurant_name/channel/total.
+        if (!columnExists("orders", "restaurant_name")) {
             return;
         }
 

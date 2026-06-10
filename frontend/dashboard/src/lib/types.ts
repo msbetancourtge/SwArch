@@ -206,13 +206,11 @@ export interface IndividualRating {
 // =======================
 
 export type OrderStatus =
-  | "Pending"
-  | "SentToKitchen"
-  | "Preparing"
-  | "Ready"
-  | "Served"
-  | "Delivered"
-  | "Cancelled";
+  | "PENDING"
+  | "IN_PREPARATION"
+  | "READY"
+  | "DELIVERED"
+  | "CANCELLED";
 
 export type OrderItem = {
   id: number;
@@ -225,20 +223,26 @@ export type OrderItem = {
 
 export type Order = {
   id: number;
-  customerId: number;
-  customerName: string;
+  customerId: number | null;
+  customerName: string | null;
   restaurantId: number;
-  restaurantName: string;
+  restaurantName?: string;
   status: OrderStatus;
-  channel: string;
-  notes: string;
-  eta: string;
+  notes: string | null;
+  eta?: string;
   total: number;
+  totalAmount: number;
+  priority: number;
+  tableNumber: number;
   tableId: number | null;
   waiterId: number | null;
   tipAmount: number | null;
   waiterComment: string | null;
-  preparationMinutes: number;
+  preparationMinutes?: number;
+  requestedArrivalTime?: string | null;
+  arrivalMessage?: string | null;
+  cancellationReason?: string | null;
+  cancelledAt?: string | null;
   items: OrderItem[];
   createdAt: string;
   updatedAt: string;

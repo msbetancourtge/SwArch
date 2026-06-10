@@ -6,7 +6,7 @@ spring:
       org.springframework.cloud.gateway: INFO
 
 jwt:
-  secret: "1245789630ClickAndMunchSuperSecretKey1245789630"
+  secret: ${JWT_SECRET}
   prefix: "Bearer "
 
 server:
