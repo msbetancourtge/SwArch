@@ -17,5 +17,9 @@ logging:
     org.springframework.data.mongodb: DEBUG
 
 restaurant:
-    service:
+  service:
     url: ${RESTAURANT_SERVICE_URL:http://localhost:8082}
+
+app:
+  seed:
+    enabled: ${APP_SEED_ENABLED:false}

@@ -1,6 +1,8 @@
 spring:
   application:
     name: APIGateway
+  main:
+    web-application-type: reactive
   logging:
     level:
       org.springframework.cloud.gateway: INFO

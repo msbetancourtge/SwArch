@@ -22,6 +22,11 @@ spring:
 jwt:
   secret: ${JWT_SECRET}
 
+app:
+  seed:
+    enabled: ${APP_SEED_ENABLED:false}
+    password: ${APP_SEED_PASSWORD:Password123!}
+
 server:
   port: 8081
 
