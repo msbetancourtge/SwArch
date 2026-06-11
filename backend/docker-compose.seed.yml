@@ -27,3 +27,25 @@ services:
         source: ./seed/menu-seed.js
         target: /docker-entrypoint-initdb.d/menu-seed.js
         read_only: true
+
+  order-db:
+    volumes:
+      - type: bind
+        source: ./OrderService/src/main/resources/schema.sql
+        target: /docker-entrypoint-initdb.d/01-schema.sql
+        read_only: true
+      - type: bind
+        source: ./seed/order-seed.sql
+        target: /docker-entrypoint-initdb.d/02-seed.sql
+        read_only: true
+
+  rating-db:
+    volumes:
+      - type: bind
+        source: ./RatingService/src/main/resources/schema.sql
+        target: /docker-entrypoint-initdb.d/01-schema.sql
+        read_only: true
+      - type: bind
+        source: ./seed/rating-seed.sql
+        target: /docker-entrypoint-initdb.d/02-seed.sql
+        read_only: true

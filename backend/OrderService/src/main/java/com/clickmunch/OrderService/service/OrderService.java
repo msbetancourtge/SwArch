@@ -222,6 +222,11 @@ public class OrderService {
                 average));
     }
 
+    public ApiResponse<String> getTopDeliveredDish(Long restaurantId) {
+        String dish = orderRepository.findTopDeliveredDishByRestaurantId(restaurantId);
+        return new ApiResponse<>("Top delivered dish", dish);
+    }
+
     private List<OrderResponse> toResponseList(List<Order> orders) {
         if (orders.isEmpty()) return List.of();
 
