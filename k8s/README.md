@@ -7,7 +7,12 @@
 
 ## 4.1 Información del Equipo
 
-> _(Completar con los nombres completos de los integrantes del equipo)_
+| 1 | Michael Stiven Betancourt Gelves |
+| 2 | Santiago Bejarano Ariza |
+| 3 | Santiago Suaza Montalvo|
+| 4 | Julian David Ruiz Ramos |
+| 5 | Manuel Felipe Espinosa Español |
+| 6 | Manuel Santiago Mori Ardila |
 
 ---
 
