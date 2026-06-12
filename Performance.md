@@ -92,6 +92,12 @@ NGINX Load Balancer:
 
 ----------
 
+## Tradeoffs
+
+The Load Balancer pattern introduces clear benefits in system performance, reflected in increased throughput, reduced response time, improved availability, and greater elasticity under load. However, these improvements come with tradeoffs, including added system complexity and the need for proper configuration and scaling strategies. Overall, the pattern enhances scalability and resilience, making the system more capable of handling high concurrency workloads.
+
+----------
+
 # 4. Technical Guide
 
 # 4.1 Pattern Description
