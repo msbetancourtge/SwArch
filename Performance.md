@@ -22,7 +22,7 @@ ClickAndMunch
 
 # 2. Pull Request
 
-Here is the pr link
+[Here is the pr link](https://github.com/unal-sw-arch/swarch-2026i/pull/33)
 
 ---
 
