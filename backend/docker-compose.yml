@@ -128,6 +128,8 @@ services:
         condition: service_healthy
       menuservice:
         condition: service_healthy
+      nginx-menu:
+        condition: service_healthy
       orderservice:
         condition: service_healthy
       reservationservice:
@@ -400,8 +402,15 @@ services:
       - "8084:80"   # optional (only for debugging, can remove later)
     volumes:
       - ./nginx/menu.conf:/etc/nginx/nginx.conf:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     depends_on:
-      - menuservice
+      menuservice:
+        condition: service_healthy
     networks:
       - appnet
 

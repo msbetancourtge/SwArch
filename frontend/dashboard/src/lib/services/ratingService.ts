@@ -31,7 +31,7 @@ export interface Restaurant {
 }
 // --- Configuración del Servicio ---
 
-const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8080';
+const API_BASE = import.meta.env.VITE_API_URL ?? '';
 const BASE_PATH = `${API_BASE}/rating`;
 
 /**
