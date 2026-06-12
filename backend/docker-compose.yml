@@ -113,7 +113,7 @@ services:
     environment:
       SERVICES_AUTH_URL: http://authservice:8081
       SERVICES_RESTAURANT_URL: http://restaurantservice:8082
-      SERVICES_MENU_URL: http://menuservice:8084
+      SERVICES_MENU_URL: http://nginx-menu
       SERVICES_ORDER_URL: http://orderservice:8085
       SERVICES_ORDER_WS_URL: ws://orderservice:8085
       SERVICES_RESERVATION_URL: http://reservationservice:8086
@@ -127,6 +127,8 @@ services:
       restaurantservice:
         condition: service_healthy
       menuservice:
+        condition: service_healthy
+      nginx-menu:
         condition: service_healthy
       orderservice:
         condition: service_healthy
@@ -201,7 +203,7 @@ services:
 
   menuservice:
     build: ./MenuService
-    container_name: menuservice
+    # container_name: menuservice
     # Internal only: reach via apigateway:/menu/**.
     expose:
       - "8084"
@@ -388,6 +390,26 @@ services:
       notification-db:
         condition: service_healthy
       rabbitmq:
+        condition: service_healthy
+    networks:
+      - appnet
+
+
+  nginx-menu:
+    image: nginx:alpine
+    container_name: nginx-menu
+    ports:
+      - "8084:80"   # optional (only for debugging, can remove later)
+    volumes:
+      - ./nginx/menu.conf:/etc/nginx/nginx.conf:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    depends_on:
+      menuservice:
         condition: service_healthy
     networks:
       - appnet
