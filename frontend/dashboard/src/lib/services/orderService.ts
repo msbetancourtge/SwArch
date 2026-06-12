@@ -1,6 +1,6 @@
 import type { Order, OrderStatus } from "@/lib/types";
 
-const API = import.meta.env.VITE_API_GATEWAY_BASE ?? import.meta.env.VITE_API_URL ?? "http://localhost:8080";
+const API = import.meta.env.VITE_API_GATEWAY_BASE ?? import.meta.env.VITE_API_URL ?? "";
 
 // 🔐 Headers con auth
 const getHeaders = () => {

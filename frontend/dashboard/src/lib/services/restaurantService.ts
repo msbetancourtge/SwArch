@@ -1,6 +1,6 @@
 import type { Restaurant, RestaurantMenuItem } from "@/lib/types";
 
-const API_GATEWAY_BASE = import.meta.env.VITE_API_GATEWAY_BASE ?? "http://localhost:8080";
+const API_GATEWAY_BASE = import.meta.env.VITE_API_GATEWAY_BASE ?? "";
 
 const RESTAURANT_IMAGE_PLACEHOLDER = "https://placehold.co/600x400?text=Restaurante";
 const MENU_ITEM_IMAGE_PLACEHOLDER = "https://placehold.co/100x100?text=Plato";

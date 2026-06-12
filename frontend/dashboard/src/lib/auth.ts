@@ -4,7 +4,7 @@
 const AUTH_API_BASE =
   import.meta.env.VITE_API_GATEWAY_URL ??
   import.meta.env.VITE_API_URL ??
-  "http://localhost:8080";
+  "";
 
 // Tipos de respuesta del backend
 interface ApiResponse<T> {
@@ -260,7 +260,7 @@ export async function getOwnerRestaurantId(): Promise<number | null> {
   if (!['RESTAURANT_MANAGER', 'WAITER', 'CHEF', 'ADMIN'].includes(role)) return null;
 
   const userId = getCurrentUserId();
-  const apiBase = import.meta.env.VITE_API_URL ?? 'http://localhost:8080';
+  const apiBase = import.meta.env.VITE_API_URL ?? '';
 
   // ADMIN can still work with a fallback restaurant to demo operational pages.
   if (!userId && role !== 'ADMIN') return null;
@@ -324,4 +324,3 @@ export function getTokenPayload(): { userId: number; username: string; role: str
 export function logout() {
   clearSession();
 }
-
