@@ -199,6 +199,40 @@ export async function register(
     return { success: false, message: 'Error de conexión con el servidor' };
   }
 }
+// Cambiar contraseña del usuario actual
+export async function changePassword(
+  currentPassword: string,
+  newPassword: string
+): Promise<{ success: boolean; message: string }> {
+  const session = getSession();
+  const userId = getCurrentUserId();
+  if (!session || !userId) {
+    return { success: false, message: 'Sesión no válida. Inicia sesión de nuevo.' };
+  }
+
+  try {
+    const res = await fetch(`${AUTH_API_BASE}/auth/users/${userId}/password`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.token}`,
+      },
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+
+    const data: ApiResponse<string> = await res.json().catch(() => ({ message: '', data: null }));
+
+    if (!res.ok) {
+      return { success: false, message: data.message || 'No se pudo cambiar la contraseña' };
+    }
+
+    return { success: true, message: data.message || 'Contraseña actualizada correctamente' };
+  } catch (error) {
+    console.error('Change password error:', error);
+    return { success: false, message: 'Error de conexión con el servidor' };
+  }
+}
+
 //decode
 export function decodeJwtPayload(token: string): any | null {
   try {

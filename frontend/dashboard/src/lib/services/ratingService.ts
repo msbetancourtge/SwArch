@@ -136,5 +136,22 @@ export const ratingService = {
     } catch (error) {
       return [];
     }
+  },
+
+  /**
+   * Obtiene todas las reseñas de meseros de un restaurante (para el dashboard)
+   * GET /api/ratings/waiter/restaurant/{restaurantId}
+   */
+  async getWaiterRatingsByRestaurant(restaurantId: number | string): Promise<IndividualRating[]> {
+    try {
+      const res = await fetch(`${BASE_PATH}/waiter/restaurant/${restaurantId}`, {
+        method: 'GET',
+        headers: authHeaders(),
+      });
+      if (!res.ok) return [];
+      return await res.json();
+    } catch (error) {
+      return [];
+    }
   }
 };
