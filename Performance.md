@@ -9,7 +9,7 @@ ClickAndMunch
 
 **Team Name:** 1a
 
-| # | Full Name                         |
+| # | Full Name                        |
 |---|-----------------------------------|
 | 1 | Michael Stiven Betancourt Gelves |
 | 2 | Santiago Bejarano Ariza          |
