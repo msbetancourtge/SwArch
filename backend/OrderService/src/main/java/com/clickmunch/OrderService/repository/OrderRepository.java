@@ -28,4 +28,7 @@ public interface OrderRepository extends ListCrudRepository<Order, Long> {
             @Param("restaurantId") Long restaurantId,
             @Param("start") LocalDateTime start,
             @Param("end") LocalDateTime end);
+
+    @Query("SELECT oi.item_name FROM order_items oi JOIN orders o ON o.id = oi.order_id WHERE o.restaurant_id = :restaurantId AND o.status = 'DELIVERED' GROUP BY oi.item_name ORDER BY COUNT(*) DESC LIMIT 1")
+    String findTopDeliveredDishByRestaurantId(@Param("restaurantId") Long restaurantId);
 }

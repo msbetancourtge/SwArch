@@ -105,6 +105,13 @@ public class OrderController {
         return ResponseEntity.ok(orderService.getMonthlyEarnings(restaurantId, year, month));
     }
 
+    @Operation(summary = "Get the most delivered dish for a restaurant")
+    @GetMapping("/restaurant/{restaurantId}/top-dish")
+    public ResponseEntity<com.clickmunch.OrderService.dto.ApiResponse<String>> getTopDeliveredDish(
+            @Parameter(description = "Restaurant ID") @PathVariable Long restaurantId) {
+        return ResponseEntity.ok(orderService.getTopDeliveredDish(restaurantId));
+    }
+
     @Operation(summary = "Estimate ETA from current user position to the order restaurant")
     @GetMapping("/{id}/eta")
     public ResponseEntity<com.clickmunch.OrderService.dto.ApiResponse<OrderEtaResponse>> getOrderEta(

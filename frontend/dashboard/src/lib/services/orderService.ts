@@ -249,6 +249,16 @@ export const orderService = {
     return json.data ?? json;
   },
 
+  // 🍽️ Plato más entregado del restaurante (backend devuelve el nombre)
+  async getTopDish(restaurantId: number): Promise<string | null> {
+    const res = await fetch(`${API}/order/restaurant/${restaurantId}/top-dish`, {
+      headers: getHeaders(),
+    });
+    if (!res.ok) return null;
+    const json = await res.json();
+    return json?.data ?? null;
+  },
+
   // 🧪 Debug
   logOrder(order: Order) {
     console.log("📦 ORDER:", order);
