@@ -21,7 +21,8 @@ ClickAndMunch
 ---
 
 # 2. Pull Request
-PR link is on the pdf
+
+Here is the pr link
 
 ---
 
@@ -49,10 +50,12 @@ Computationss** and **increase available computational resource** by distributin
 > Main Changes
 
 Before
+
 ![LoadBalancerAntes](images/LBBefore.png)
 
 
 After
+
 ![LoadBalancerDespues](images/LBAfter.png)
 
 
@@ -306,8 +309,6 @@ The knee of the performance curve was identified at fewer than 2000 concurrent u
 
 The performance tests allowed the identification of the system’s knee point, which occurred at fewer than 2000 concurrent users. Up to this point, the system maintained stable response times and acceptable throughput levels.
 
-
-## Discussion
 
 ## Discussion
 
