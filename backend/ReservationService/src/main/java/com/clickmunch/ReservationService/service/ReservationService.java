@@ -60,8 +60,13 @@ public class ReservationService {
     public ReservationResponse assignTable(Long id, Long tableId) {
         Reservation reservation = reservationRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Reservation not found: " + id));
+        Long previousTableId = reservation.getTableId();
         reservation.setTableId(tableId);
         Reservation updated = reservationRepository.save(reservation);
+        if (previousTableId != null && !previousTableId.equals(tableId)) {
+            updateTableStatus(previousTableId, "AVAILABLE", updated.getId());
+        }
+        updateTableStatus(tableId, "RESERVED", updated.getId());
         return toResponse(updated);
     }
 
@@ -109,6 +114,7 @@ public class ReservationService {
         reservation.setStatus(newStatus);
 
         Reservation updated = reservationRepository.save(reservation);
+        syncTableStatusForReservation(updated);
 
         // Publish async event for notifications
         if (newStatus == ReservationStatus.Confirmada) {
@@ -158,6 +164,9 @@ public class ReservationService {
         reservation.setStatus(ReservationStatus.CheckedIn);
         reservation.setCheckedInAt(LocalDateTime.now());
         Reservation updated = reservationRepository.save(reservation);
+        if (updated.getTableId() != null) {
+            updateTableStatus(updated.getTableId(), "OCCUPIED", updated.getId());
+        }
         return toResponse(updated);
     }
 
@@ -173,12 +182,7 @@ public class ReservationService {
 
             // Release the table if one was assigned
             if (reservation.getTableId() != null) {
-                try {
-                    restaurantClient.updateTableStatus(reservation.getTableId(), "AVAILABLE");
-                } catch (Exception e) {
-                    log.warn("Failed to release table {} for reservation {}: {}",
-                            reservation.getTableId(), reservation.getId(), e.getMessage());
-                }
+                updateTableStatus(reservation.getTableId(), "AVAILABLE", reservation.getId());
             }
 
             log.info("Auto-released reservation {} (no check-in within 10 minutes)", reservation.getId());
@@ -242,6 +246,30 @@ public class ReservationService {
         }
 
         return new SuggestedTimesResponse(restaurantId, date.toString(), partySize, slots);
+    }
+
+    private void syncTableStatusForReservation(Reservation reservation) {
+        if (reservation.getTableId() == null) {
+            return;
+        }
+
+        switch (reservation.getStatus()) {
+            case Confirmada -> updateTableStatus(reservation.getTableId(), "RESERVED", reservation.getId());
+            case CheckedIn -> updateTableStatus(reservation.getTableId(), "OCCUPIED", reservation.getId());
+            case Cancelada, Completada, NoShow -> updateTableStatus(reservation.getTableId(), "AVAILABLE", reservation.getId());
+            case Pendiente -> {
+                // A pending reservation keeps its assigned table reserved once a manager assigns it.
+            }
+        }
+    }
+
+    private void updateTableStatus(Long tableId, String status, Long reservationId) {
+        try {
+            restaurantClient.updateTableStatus(tableId, status);
+        } catch (Exception e) {
+            log.warn("Failed to mark table {} as {} for reservation {}: {}",
+                    tableId, status, reservationId, e.getMessage());
+        }
     }
 
     private ReservationResponse toResponse(Reservation r) {

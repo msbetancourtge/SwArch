@@ -2,10 +2,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ChefHat, Clock, RefreshCw, AlertCircle, UtensilsCrossed, Radio, RadioTower } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { useAuth } from '@/contexts/AuthContext';
 import { kitchenOrderService } from '@/lib/services/kitchenOrderService';
 import { subscribeKitchen, type KitchenEvent } from '@/lib/services/kitchenRealtime';
 import type { KitchenOrder, KitchenOrderStatus } from '@/lib/types';
-import { useAuth } from '@/contexts/AuthContext';
 
 // Safety-net polling: the realtime channel is the primary mechanism, but this
 // keeps the UI correct on reconnects, transient network errors, or missed
@@ -76,9 +76,7 @@ function groupItems(items: { id: number; itemName: string; notes: string | null 
 const ACTIVE_STATUSES: KitchenOrderStatus[] = ['PENDING', 'IN_PREPARATION', 'READY'];
 
 export const ChefKitchenPage = () => {
-  const { restaurantId } = useAuth();
-  const RESTAURANT_ID = restaurantId ?? 1026;
-
+  const { restaurantId, isLoading: authLoading } = useAuth();
   const [orders, setOrders] = useState<KitchenOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -88,9 +86,15 @@ export const ChefKitchenPage = () => {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const loadOrders = useCallback(async (showLoading = false) => {
+    if (restaurantId === null) {
+      setOrders([]);
+      setLoading(false);
+      return;
+    }
+
     if (showLoading) setLoading(true);
     try {
-      const data = await kitchenOrderService.getKitchenOrders(RESTAURANT_ID);
+      const data = await kitchenOrderService.getKitchenOrders(restaurantId);
       setOrders(data);
       setError(null);
       setLastRefresh(new Date());
@@ -100,7 +104,7 @@ export const ChefKitchenPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [RESTAURANT_ID]);
+  }, [restaurantId]);
 
   // Merge a realtime event into the local order list. For CREATED we append,
   // for STATUS_CHANGED we update in place (and remove if the new status leaves
@@ -127,10 +131,14 @@ export const ChefKitchenPage = () => {
   }, []);
 
   useEffect(() => {
+    if (restaurantId === null) {
+      return;
+    }
+
     loadOrders(true);
 
     const handle = subscribeKitchen(
-      RESTAURANT_ID,
+      restaurantId,
       applyEvent,
       setLiveConnected,
     );
@@ -140,7 +148,7 @@ export const ChefKitchenPage = () => {
       handle.disconnect();
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [loadOrders, applyEvent, RESTAURANT_ID]);
+  }, [loadOrders, applyEvent, restaurantId]);
 
   const handleStatusChange = async (orderId: number, newStatus: KitchenOrderStatus) => {
     setUpdatingIds(prev => new Set(prev).add(orderId));
@@ -161,6 +169,24 @@ export const ChefKitchenPage = () => {
   const pendingCount = orders.filter(o => o.status === 'PENDING').length;
   const prepCount = orders.filter(o => o.status === 'IN_PREPARATION').length;
   const readyCount = orders.filter(o => o.status === 'READY').length;
+
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <RefreshCw className="w-8 h-8 text-gray-400 animate-spin" />
+      </div>
+    );
+  }
+
+  if (restaurantId === null) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+        <AlertCircle className="w-12 h-12 mb-3" />
+        <p className="text-lg font-medium">No hay restaurante asociado</p>
+        <p className="text-sm">La cocina necesita un restaurante para cargar órdenes.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
