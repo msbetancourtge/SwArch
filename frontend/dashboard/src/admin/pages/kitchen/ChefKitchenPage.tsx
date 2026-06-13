@@ -5,12 +5,12 @@ import { Badge } from '@/components/ui/badge';
 import { kitchenOrderService } from '@/lib/services/kitchenOrderService';
 import { subscribeKitchen, type KitchenEvent } from '@/lib/services/kitchenRealtime';
 import type { KitchenOrder, KitchenOrderStatus } from '@/lib/types';
+import { useAuth } from '@/contexts/AuthContext';
 
 // Safety-net polling: the realtime channel is the primary mechanism, but this
 // keeps the UI correct on reconnects, transient network errors, or missed
 // frames. Short enough to recover quickly, long enough to not hit the backend.
 const SAFETY_POLL_INTERVAL_MS = 60_000;
-const RESTAURANT_ID = 1;
 
 const STATUS_CONFIG: Record<KitchenOrderStatus, {
   label: string;
@@ -76,6 +76,9 @@ function groupItems(items: { id: number; itemName: string; notes: string | null 
 const ACTIVE_STATUSES: KitchenOrderStatus[] = ['PENDING', 'IN_PREPARATION', 'READY'];
 
 export const ChefKitchenPage = () => {
+  const { restaurantId } = useAuth();
+  const RESTAURANT_ID = restaurantId ?? 1026;
+
   const [orders, setOrders] = useState<KitchenOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -97,7 +100,7 @@ export const ChefKitchenPage = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [RESTAURANT_ID]);
 
   // Merge a realtime event into the local order list. For CREATED we append,
   // for STATUS_CHANGED we update in place (and remove if the new status leaves
@@ -137,7 +140,7 @@ export const ChefKitchenPage = () => {
       handle.disconnect();
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [loadOrders, applyEvent]);
+  }, [loadOrders, applyEvent, RESTAURANT_ID]);
 
   const handleStatusChange = async (orderId: number, newStatus: KitchenOrderStatus) => {
     setUpdatingIds(prev => new Set(prev).add(orderId));
