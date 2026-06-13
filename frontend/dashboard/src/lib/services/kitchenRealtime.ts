@@ -41,8 +41,8 @@ export function subscribeKitchen(
     // (MVP) but keeps the contract stable for when role-based auth is added.
     connectHeaders: session?.token ? { Authorization: `Bearer ${session.token}` } : {},
     reconnectDelay: 3_000,
-    heartbeatIncoming: 10_000,
-    heartbeatOutgoing: 10_000,
+    heartbeatIncoming: 4_000,
+    heartbeatOutgoing: 4_000,
   });
 
   client.onConnect = () => {
