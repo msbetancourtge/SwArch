@@ -319,12 +319,15 @@ services:
       SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER}
       SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
       GEO_SERVICE_URL: http://geoservice:8083
+      RESTAURANT_SERVICE_URL: http://restaurantservice:8082
     depends_on:
       order-db:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
       geoservice:
+        condition: service_healthy
+      restaurantservice:
         condition: service_healthy
     networks:
       - appnet
