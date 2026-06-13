@@ -12,8 +12,31 @@ if (typeof globalThis.TextDecoder === 'undefined') {
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { SplashScreen, Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useColorScheme } from 'react-native';
+import { Alert, Platform, useColorScheme } from 'react-native';
 import { useFonts } from 'expo-font'
+
+if (Platform.OS === 'web') {
+    Alert.alert = (title, message, buttons) => {
+        const text = `${title}\n\n${message || ''}`;
+        if (buttons && buttons.length > 0) {
+            const confirmButton = buttons.find(b => b.style !== 'cancel');
+            if (confirmButton && buttons.length > 1) {
+                const res = window.confirm(text);
+                if (res && confirmButton.onPress) {
+                    confirmButton.onPress();
+                }
+            } else {
+                window.alert(text);
+                const firstButton = buttons[0];
+                if (firstButton && firstButton.onPress) {
+                    firstButton.onPress();
+                }
+            }
+        } else {
+            window.alert(text);
+        }
+    };
+}
 import 'react-native-reanimated';
 import { useEffect } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
