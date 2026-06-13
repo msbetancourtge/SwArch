@@ -1,3 +1,14 @@
+// Polyfill TextEncoder/TextDecoder for @stomp/stompjs in React Native.
+// Hermes/JSC do not expose these globals; stompjs v7 requires them for
+// binary frame encoding (forceBinaryWSFrames: true).
+import { TextEncoder, TextDecoder } from 'text-encoding';
+if (typeof globalThis.TextEncoder === 'undefined') {
+    (globalThis as any).TextEncoder = TextEncoder;
+}
+if (typeof globalThis.TextDecoder === 'undefined') {
+    (globalThis as any).TextDecoder = TextDecoder;
+}
+
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { SplashScreen, Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';

@@ -47,9 +47,17 @@ export const subscribeKitchen = (
     const client = new Client({
         brokerURL: resolveWsUrl(),
         connectHeaders: token ? { Authorization: `Bearer ${token}` } : {},
+        // ── React Native workarounds ──────────────────────────────────
+        // RN's WebSocket impl strips the NULL byte (\x00) that terminates
+        // every STOMP frame when using text-mode frames. Sending as binary
+        // avoids the issue outright; appendMissingNULL re-adds the byte on
+        // incoming frames in case the server's response is also mangled.
+        forceBinaryWSFrames: true,
+        appendMissingNULLonIncoming: true,
+        // ──────────────────────────────────────────────────────────────
         reconnectDelay: 3_000,
-        heartbeatIncoming: 10_000,
-        heartbeatOutgoing: 10_000,
+        heartbeatIncoming: 4_000,
+        heartbeatOutgoing: 4_000,
         // React Native's `console` already provides the right level-based
         // output, so we keep the default `debug` off.
         debug: () => undefined,
