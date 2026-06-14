@@ -37,8 +37,8 @@ spec:
       # NO se usa podAntiAffinity — con 1 sola réplica no tiene sentido
       containers:
         - name: notificationservice
-          image: us.icr.io/tech-summit/notificationservice:latest
-          imagePullPolicy: Always
+          image: clickmunch/notificationservice:latest
+          imagePullPolicy: Never
           ports:
             - containerPort: 8087
               name: http
@@ -95,7 +95,6 @@ spec:
               port: 8087
             initialDelaySeconds: 60    # Spring Boot necesita ~45-60 s para iniciar
             periodSeconds: 15
-            timeoutSeconds: 10
             failureThreshold: 3        # 3 fallos = 45 s → reiniciar pod
           readinessProbe:
             httpGet:
@@ -103,5 +102,4 @@ spec:
               port: 8087
             initialDelaySeconds: 45    # Disponible para recibir tráfico tras 45 s
             periodSeconds: 10
-            timeoutSeconds: 10
             failureThreshold: 3        # 3 fallos = 30 s → remover del Service
