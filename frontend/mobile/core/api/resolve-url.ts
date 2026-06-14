@@ -18,28 +18,28 @@ export const resolveUrl = (type: 'api' | 'gateway' | 'ws'): string => {
 
     // Web browser always connects to localhost (or the configured iOS URL)
     if (Platform.OS === 'web') {
-        if (type === 'api') return process.env.EXPO_PUBLIC_API_URL_IOS || 'http://localhost:8080';
-        if (type === 'gateway') return process.env.EXPO_PUBLIC_GATEWAY_URL_IOS || 'http://localhost:8080';
-        return process.env.EXPO_PUBLIC_ORDER_WS_URL_IOS || 'ws://localhost:8080/ws/kitchen';
+        if (type === 'api') return process.env.EXPO_PUBLIC_API_URL_IOS || 'https://localhost:8080';
+        if (type === 'gateway') return process.env.EXPO_PUBLIC_GATEWAY_URL_IOS || 'https://localhost:8080';
+        return process.env.EXPO_PUBLIC_ORDER_WS_URL_IOS || 'wss://localhost:8080/ws/kitchen';
     }
 
     // Dynamic IP resolution for physical devices / emulators
     const hostIp = getHostIp();
     if (hostIp) {
         if (type === 'api' || type === 'gateway') {
-            return `http://${hostIp}:8080`;
+            return `https://${hostIp}:8080`;
         }
-        return `ws://${hostIp}:8080/ws/kitchen`;
+        return `wss://${hostIp}:8080/ws/kitchen`;
     }
 
     // Fallback if hostIp is not available (e.g. no packager connection)
     if (Platform.OS === 'ios') {
-        if (type === 'api') return process.env.EXPO_PUBLIC_API_URL_IOS || 'http://localhost:8080';
-        if (type === 'gateway') return process.env.EXPO_PUBLIC_GATEWAY_URL_IOS || 'http://localhost:8080';
-        return process.env.EXPO_PUBLIC_ORDER_WS_URL_IOS || 'ws://localhost:8080/ws/kitchen';
+        if (type === 'api') return process.env.EXPO_PUBLIC_API_URL_IOS || 'https://localhost:8080';
+        if (type === 'gateway') return process.env.EXPO_PUBLIC_GATEWAY_URL_IOS || 'https://localhost:8080';
+        return process.env.EXPO_PUBLIC_ORDER_WS_URL_IOS || 'wss://localhost:8080/ws/kitchen';
     } else {
-        if (type === 'api') return process.env.EXPO_PUBLIC_API_URL_ANDROID || 'http://10.0.2.2:8080';
-        if (type === 'gateway') return process.env.EXPO_PUBLIC_GATEWAY_URL_ANDROID || 'http://10.0.2.2:8080';
-        return process.env.EXPO_PUBLIC_ORDER_WS_URL_ANDROID || 'ws://10.0.2.2:8080/ws/kitchen';
+        if (type === 'api') return process.env.EXPO_PUBLIC_API_URL_ANDROID || 'https://10.0.2.2:8080';
+        if (type === 'gateway') return process.env.EXPO_PUBLIC_GATEWAY_URL_ANDROID || 'https://10.0.2.2:8080';
+        return process.env.EXPO_PUBLIC_ORDER_WS_URL_ANDROID || 'wss://10.0.2.2:8080/ws/kitchen';
     }
 };
