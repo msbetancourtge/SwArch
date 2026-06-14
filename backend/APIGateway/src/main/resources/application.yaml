@@ -20,7 +20,7 @@ services:
   restaurant:
     url: ${SERVICES_RESTAURANT_URL:http://localhost:8082}
   menu:
-    url: ${SERVICES_MENU_URL:http://localhost:8084}
+    url: ${SERVICES_MENU_URL:http://localhost:80}
   order:
     url: ${SERVICES_ORDER_URL:http://localhost:8085}
   reservation:
