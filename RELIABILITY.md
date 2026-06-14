@@ -448,6 +448,236 @@ Sin un PDB, un `kubectl drain` de mantenimiento puede eliminar simultáneamente 
 
 ---
 
+## 4.5 Guía Técnica — Parte C: Cold Spare (NotificationService)
+
+### 1. Descripción del Patrón
+
+Se implementa **Passive Redundancy (Cold Spare)**, que corresponde a la táctica **Redundant Spare** dentro del grupo *Recover from Faults > Preparation and Repair* del catálogo de tácticas de confiabilidad de Len Bass.
+
+**Definición:** Solo **una instancia** del servicio está activa y procesando solicitudes en todo momento. No hay instancia spare pre-encendida. Cuando la instancia activa falla, el orquestador (Kubernetes) crea una nueva instancia (el "spare frío" se enciende), que debe pasar por todo el ciclo de arranque antes de poder procesar tráfico. Durante este periodo de arranque, el servicio está **no disponible** — pero gracias a RabbitMQ como buffer de mensajes, **no se pierde ningún evento**.
+
+**Componente seleccionado: NotificationService**
+
+El NotificationService es un servicio **no-crítico para la operación de negocio**: los pedidos, pagos y reservaciones pueden funcionar normalmente sin notificaciones. Esto lo hace el candidato ideal para Cold Spare: se acepta un periodo de inactividad de ~60-90 s a cambio de menor consumo de recursos (una sola instancia en vez de dos).
+
+### 2. Comparación: Cold Spare vs Hot Spare
+
+| Aspecto | Hot Spare (AuthService) | Cold Spare (NotificationService) |
+|---|---|---|
+| **Réplicas activas** | 2 (ambas procesan tráfico) | 1 (sin spare pre-encendida) |
+| **Consumo de CPU/RAM** | 2× (doble de recursos) | 1× (recursos mínimos) |
+| **Downtime durante fallo** | 0 ms | ~60-90 s (arranque del spare) |
+| **PDB** | `minAvailable: 1` | `maxUnavailable: 1` |
+| **Anti-afinidad de pod** | Sí (distribuir en nodos) | No (1 sola réplica) |
+| **Pérdida de mensajes** | Ninguna | Ninguna (RabbitMQ los retiene) |
+| **Sincronización de estado** | Continua (BD compartida) | No necesaria |
+| **Caso de uso ideal** | Servicios críticos (auth, pagos) | Servicios tolerantes a latencia |
+
+### 3. Escenario de Calidad
+
+| Elemento | Descripción |
+|---|---|
+| **Fuente** | Fallo interno de infraestructura (proceso de la JVM) |
+| **Estímulo** | El único Pod activo del NotificationService termina inesperadamente por un OutOfMemoryError durante la hora pico del almuerzo (12:00–14:00) |
+| **Artefacto** | NotificationService — microservicio de notificaciones y streaming SSE (puerto 8087) |
+| **Entorno** | Operación normal con carga: 1 instancia activa, 0 instancias spare pre-encendidas, ~200 eventos de pedidos/reservaciones por hora encolados en RabbitMQ |
+| **Respuesta** | La liveness probe detecta el pod fallido en ≤ 45 s; el Controller Manager agenda un nuevo pod (el spare frío se enciende); RabbitMQ retiene todos los mensajes de `notification.order.queue` y `notification.reservation.queue` sin pérdida; el nuevo pod arranca, se conecta a PostgreSQL y RabbitMQ, y procesa los mensajes acumulados |
+| **Medida de respuesta** | **RTO ≤ 90 s** (tiempo de arranque del pod); **RPO = 0** (ningún mensaje perdido); durante el RTO las peticiones REST devuelven HTTP 503; las conexiones SSE se desconectan pero los clientes reconectan automáticamente y reciben las notificaciones acumuladas |
+
+### 4. Vista Arquitectónica
+
+```
+              ┌───────────────────────────────────────────────────────────────┐
+              │  K8s Service: notificationservice (ClusterIP, :8087)          │
+              │  Patrón: Cold Spare (Passive Redundancy)                     │
+              └──────────────────────────┬────────────────────────────────────┘
+                                         │
+                          ┌──────────────▼──────────────┐
+                          │  Pod notificationservice-1  │
+                          │  (ACTIVO — única instancia) │
+                          │                              │
+                          │  • Consume eventos RabbitMQ │
+                          │  • REST /api/notifications  │
+                          │  • SSE /stream/{userId}     │
+                          │  • Persiste a PostgreSQL    │
+                          └──────────────┬──────────────┘
+                                         │
+                    ┌────────────────────┼────────────────────┐
+                    │                    │                     │
+                    ▼                    ▼                     ▼
+         ┌──────────────────┐  ┌──────────────────┐  ┌──────────────┐
+         │  notification-db │  │    RabbitMQ       │  │  APIGateway  │
+         │  (PostgreSQL 16) │  │  (Message Broker) │  │  (proxy)     │
+         │  PVC: 1Gi       │  │  Colas durables:  │  │              │
+         └──────────────────┘  │  • order.queue    │  └──────────────┘
+                               │  • reservation.q  │
+                               └──────────────────┘
+
+  ─────────────────────────────────────────────────────────────────────────
+  ESCENARIO DE FALLO: notificationservice-1 cae (OOM / crash)
+  ─────────────────────────────────────────────────────────────────────────
+
+  Tiempo   Evento                                          Estado
+  ──────   ──────────────────────────────────────────────   ──────────────
+  T+0 s    Pod crashea por OOM                             ⛔ 0/1 Running
+  T+15 s   Liveness probe falla (1er intento)              ⛔ 0/1 Running
+  T+30 s   Liveness probe falla (2do intento)              ⛔ 0/1 Running
+  T+45 s   Liveness probe falla (3er intento) → restart    🔄 Restarting
+  T+45 s   RabbitMQ acumula mensajes en colas durables     📨 Buffering
+  T+50 s   Nuevo pod en estado ContainerCreating           🔄 Creating
+  T+90 s   Spring Boot listo, readiness probe pasa         ✅ 1/1 Running
+  T+90 s   Mensajes acumulados de RabbitMQ se procesan     📧 Delivering
+  T+90 s   Service endpoint restaurado, REST disponible    ✅ Available
+
+  RTO total: ~90 s | RPO: 0 mensajes perdidos
+```
+
+### 5. Pasos de Implementación
+
+#### Capa 1 — Deployment con 1 réplica (Cold Spare)
+
+El `notificationservice/deployment.yaml` configura:
+
+```yaml
+spec:
+  replicas: 1                       # COLD SPARE: solo 1 instancia activa
+  strategy:
+    rollingUpdate:
+      maxUnavailable: 1             # Se acepta downtime temporal
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        redundancy: cold-spare      # Etiqueta documental
+```
+
+A diferencia del Hot Spare (`replicas: 2`), aquí solo hay una instancia. No se configura `podAntiAffinity` porque con 1 réplica no tiene sentido distribuir entre nodos.
+
+#### Capa 2 — Probes de liveness y readiness
+
+```yaml
+livenessProbe:
+  httpGet:
+    path: /actuator/health
+    port: 8087
+  initialDelaySeconds: 60         # Spring Boot necesita ~45-60 s
+  periodSeconds: 15
+  failureThreshold: 3             # 3 fallos → pod reiniciado
+
+readinessProbe:
+  httpGet:
+    path: /actuator/health
+    port: 8087
+  initialDelaySeconds: 45         # Más agresivo para minimizar RTO
+  periodSeconds: 10
+  failureThreshold: 3
+```
+
+#### Capa 3 — PodDisruptionBudget
+
+```yaml
+# notificationservice/pdb.yaml
+spec:
+  maxUnavailable: 1               # Cold Spare: se permite desalojar el pod
+  selector:
+    matchLabels:
+      app: notificationservice
+```
+
+El PDB usa `maxUnavailable: 1` (en vez del `minAvailable: 1` del Hot Spare), porque el Cold Spare acepta periodos de indisponibilidad temporal.
+
+#### Capa 4 — RabbitMQ como buffer de mensajes
+
+RabbitMQ es el componente clave que hace viable el Cold Spare para este servicio:
+
+```yaml
+# Las colas son DURABLES (persisten a disco)
+@Bean
+public Queue orderQueue() {
+    return new Queue(ORDER_QUEUE, true);  // true = durable
+}
+```
+
+Cuando el pod del NotificationService cae, RabbitMQ retiene los mensajes en sus colas durables (`notification.order.queue`, `notification.reservation.queue`). Al arrancar el spare, los `@RabbitListener` reconectan automáticamente y procesan todos los mensajes acumulados.
+
+### 6. Fragmentos de Configuración Clave
+
+```yaml
+# Deployment: variables de entorno del cold spare
+env:
+  # BD propia del NotificationService (K8s internal)
+  - name: SPRING_DATASOURCE_URL
+    valueFrom:
+      configMapKeyRef:
+        name: clickmunch-config
+        key: NOTIFICATION_DATASOURCE_URL    # jdbc:postgresql://notification-db:5432/notification_db
+
+  # RabbitMQ (K8s internal — buffer de mensajes)
+  - name: SPRING_RABBITMQ_HOST
+    valueFrom:
+      configMapKeyRef:
+        name: clickmunch-config
+        key: SPRING_RABBITMQ_HOST           # "rabbitmq"
+```
+
+**¿Por qué Cold Spare funciona sin perder mensajes?**
+1. Las colas de RabbitMQ son **durables** (`true`) — persisten a disco incluso si RabbitMQ reinicia.
+2. Los `@RabbitListener` del NotificationService implementan **auto-reconnect** (comportamiento por defecto de Spring AMQP).
+3. Al arrancar el spare, Spring se conecta a RabbitMQ y consume todos los mensajes pendientes en orden FIFO.
+
+### 7. Evidencia de Failover
+
+```bash
+# Script automatizado:
+bash k8s/scripts/simulate-failover.sh notificationservice
+```
+
+**Pasos manuales equivalentes:**
+
+```bash
+# 1. Ver la única réplica activa
+kubectl get pods -n clickmunch -l app=notificationservice -o wide
+
+# Salida:
+# NAME                                   READY   NODE       IP
+# notificationservice-6a7b8c9d0-x1y2z   1/1     minikube   172.17.0.8
+
+# 2. Eliminar el pod (simula crash inesperado)
+kubectl delete pod notificationservice-6a7b8c9d0-x1y2z -n clickmunch
+
+# 3. Observar en tiempo real:
+kubectl get pods -n clickmunch -l app=notificationservice --watch
+
+# Salida esperada:
+# notificationservice-6a7b8c9d0-x1y2z   1/1   Terminating          0   10m  ← pod caído
+# (0 pods Running durante ~60-90 s — esto es el downtime aceptado del Cold Spare)
+# notificationservice-6a7b8c9d0-a3b4c   0/1   Pending              0   2s   ← spare creándose
+# notificationservice-6a7b8c9d0-a3b4c   0/1   ContainerCreating    0   5s
+# notificationservice-6a7b8c9d0-a3b4c   1/1   Running              0   78s  ← spare activo
+
+# 4. Verificar que los mensajes acumulados se procesaron:
+kubectl logs -n clickmunch -l app=notificationservice --tail=20
+
+# Resultado esperado: logs mostrando "Received order event: ..." para los
+# mensajes que se acumularon en RabbitMQ durante el downtime.
+```
+
+### 8. Recomendaciones para Otros Equipos
+
+**Recomendación 1 — Usa Cold Spare solo si tienes un buffer de mensajes**
+
+El Cold Spare funciona aquí porque RabbitMQ actúa como buffer durante el downtime. Si tu servicio recibe solo tráfico REST síncrono (sin cola de mensajes), los clientes recibirán errores 503 durante el RTO. Evalúa si tu caso de uso tolera ese periodo de indisponibilidad.
+
+**Recomendación 2 — Mide y monitorea el RTO real**
+
+El script `simulate-failover.sh` mide el RTO (Recovery Time Objective) automáticamente. Ejecuta esta simulación regularmente para verificar que el tiempo de arranque no se ha degradado (por ejemplo, por dependencias adicionales o aumento del dataset).
+
+**Recomendación 3 — Cold Spare no es sinónimo de "sin protección"**
+
+Aunque el spare está apagado, Kubernetes garantiza el reinicio automático del pod. La diferencia con Hot Spare es solo el **tiempo de recuperación** (90 s vs 0 ms), no la **capacidad de recuperarse**. Ambos patrones son válidos según la criticidad del servicio.
+
+---
+
 ## Apéndice — Estructura de Archivos
 
 ```
@@ -466,9 +696,21 @@ k8s/
 │   ├── pvc.yaml                      # PersistentVolumeClaim 1Gi
 │   ├── statefulset.yaml              # PostgreSQL 16
 │   └── service.yaml                  # ClusterIP :5432
+├── notificationservice/
+│   ├── deployment.yaml               # Part C: Cold Spare, 1 réplica
+│   ├── service.yaml                  # ClusterIP :8087
+│   └── pdb.yaml                      # PDB (maxUnavailable: 1)
+├── notification-db/
+│   ├── pvc.yaml                      # PersistentVolumeClaim 1Gi
+│   ├── statefulset.yaml              # PostgreSQL 16
+│   └── service.yaml                  # ClusterIP :5432
+├── rabbitmq/
+│   ├── deployment.yaml               # RabbitMQ 3 con management UI
+│   └── service.yaml                  # ClusterIP :5672 + :15672
 └── scripts/
     ├── build-images-minikube.sh      # Construye imágenes en el daemon de Minikube
     ├── create-secret.sh              # Crea Secret desde backend/.env
     ├── deploy.sh                     # Aplica todos los manifiestos en orden
     └── simulate-failover.sh          # Demo de self-healing y failover
 ```
+

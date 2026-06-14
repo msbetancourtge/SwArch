@@ -16,6 +16,9 @@ docker build -t clickmunch/apigateway:latest "$BACKEND_DIR/APIGateway"
 echo "==> Construyendo imagen: clickmunch/authservice:latest"
 docker build -t clickmunch/authservice:latest "$BACKEND_DIR/AuthService"
 
+echo "==> Construyendo imagen: clickmunch/notificationservice:latest"
+docker build -t clickmunch/notificationservice:latest "$BACKEND_DIR/NotificationService"
+
 echo ""
 echo "✓ Imágenes disponibles en el daemon de Minikube:"
 docker images | grep clickmunch

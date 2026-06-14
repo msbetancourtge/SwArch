@@ -17,9 +17,16 @@ data:
   SERVICES_RESERVATION_URL: "http://host.docker.internal:8086"
   SERVICES_CHECKOUT_URL:    "http://host.docker.internal:8089"
   SERVICES_RATING_URL:      "http://host.docker.internal:8088"
-  SERVICES_NOTIFICATION_URL: "http://host.docker.internal:8087"
+  # NotificationService now runs inside K8s (Cold Spare pattern)
+  SERVICES_NOTIFICATION_URL: "http://notificationservice:8087"
 
   # Auth DB connection (K8s internal)
   SPRING_DATASOURCE_URL: "jdbc:postgresql://auth-db:5432/auth_db"
   POSTGRES_DB:           "auth_db"
   POSTGRES_USER:         "devuser"
+
+  # Notification DB connection (K8s internal — Cold Spare)
+  NOTIFICATION_DATASOURCE_URL: "jdbc:postgresql://notification-db:5432/notification_db"
+
+  # RabbitMQ (K8s internal — message buffer for Cold Spare failover)
+  SPRING_RABBITMQ_HOST: "rabbitmq"
