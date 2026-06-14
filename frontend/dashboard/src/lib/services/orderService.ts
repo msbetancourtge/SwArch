@@ -1,6 +1,9 @@
 import type { Order, OrderStatus } from "@/lib/types";
 
-const API = import.meta.env.VITE_API_GATEWAY_BASE ?? import.meta.env.VITE_API_URL ?? "";
+// Default to a same-origin relative base so requests flow through the Vite dev
+// proxy (which terminates the gateway's self-signed TLS). Override in prod with
+// VITE_API_GATEWAY_BASE = https://<gateway>.
+const API = import.meta.env.VITE_API_GATEWAY_BASE ?? "";
 
 // 🔐 Headers con auth
 const getHeaders = () => {
@@ -133,7 +136,6 @@ export const orderService = {
 
     const json = await res.json();
 
-    // 🔥 AQUÍ ESTABA EL BUG
     return normalizeArray(json);
   },
 
