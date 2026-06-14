@@ -627,6 +627,13 @@ env:
 
 ### 7. Evidencia de Failover
 
+A continuación se presenta un video demostrativo que evidencia el funcionamiento del patrón **Cold Spare** (cómo el orquestador recupera la instancia del `NotificationService` tras un fallo y cómo RabbitMQ actúa como buffer para garantizar que no haya pérdida de mensajes):
+
+<video src="./images/Cold%20Spare%20Notification%20Service.mov" controls width="100%"></video>
+
+*En caso de que el reproductor no sea compatible con tu visor de Markdown, puedes acceder al archivo de video directamente aquí:*  
+👉 **[Ver Video de Demostración (Cold Spare)](./images/Cold%20Spare%20Notification%20Service.mov)**
+
 ```bash
 # Script automatizado:
 bash k8s/scripts/simulate-failover.sh notificationservice
