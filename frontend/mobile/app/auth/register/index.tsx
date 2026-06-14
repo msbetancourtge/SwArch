@@ -7,10 +7,12 @@ import ThemedLink from '@/presentation/theme/components/themed-link';
 import { authRegister } from '@/core/auth/actions/auth-actions';
 import { useAuthStore } from '@/presentation/auth/store/useAuthStore';
 import { useRouter } from 'expo-router';
+import { useThemeColor } from '@/presentation/theme/hooks/use-theme-color';
 
 const RegisterScreen = () => {
 
   const { height } = useWindowDimensions();
+  const primaryColor = useThemeColor({}, 'primary');
   const router = useRouter();
 
   const [name, setName] = useState('');
@@ -70,11 +72,13 @@ const RegisterScreen = () => {
         >
           <View
             style={{
-              paddingTop: height * 0.12,
+              paddingTop: height * 0.08,
+              alignItems: 'center',
+              marginBottom: 24,
             }}
           >
-            <ThemedText type='title'>Crear cuenta</ThemedText>
-            <ThemedText style={{ color: 'grey', paddingTop: 10, paddingBottom: 20 }}>Por favor crea una cuenta para continuar</ThemedText>
+            <ThemedText style={{ fontSize: 36, fontFamily: 'KanitBold', color: primaryColor }}>Click & Munch</ThemedText>
+            <ThemedText style={{ color: 'grey', paddingTop: 6, fontSize: 16 }}>Por favor crea una cuenta para continuar</ThemedText>
           </View>
 
           

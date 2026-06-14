@@ -167,7 +167,7 @@ const OrderCard = ({
                 <View style={styles.actions}>
                     {secondaryLabel && onSecondary && (
                         <View style={styles.actionSecondary}>
-                            <ThemedButton onPress={onSecondary} disabled={busy}>
+                            <ThemedButton onPress={onSecondary} disabled={busy} variant="outline">
                                 {secondaryLabel}
                             </ThemedButton>
                         </View>
