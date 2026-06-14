@@ -24,8 +24,8 @@ spec:
     spec:
       containers:
         - name: apigateway
-          image: clickmunch/apigateway:latest
-          imagePullPolicy: Never       # Imagen construida localmente en Minikube
+          image: us.icr.io/tech-summit/apigateway:latest
+          imagePullPolicy: Always       # Imagen construida localmente en Minikube
           ports:
             - containerPort: 8080
               name: http

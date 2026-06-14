@@ -66,7 +66,9 @@ kubectl rollout status deployment/apigateway -n clickmunch --timeout=180s
 
 echo ""
 echo "✓ Despliegue completo. Estado del cluster:"
-kubectl get pods,svc -n clickmunch
+oc get pods,svc -n clickmunch
 echo ""
+echo "==> Exponiendo APIGateway al exterior (OpenShift Route)"
+oc expose svc/apigateway -n clickmunch 2>/dev/null || true
 echo "URL de acceso externo:"
-minikube service apigateway -n clickmunch --url
+oc get route apigateway -n clickmunch -o jsonpath='{"http://"}{.spec.host}{"\n"}'

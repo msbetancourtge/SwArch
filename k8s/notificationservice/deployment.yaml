@@ -37,8 +37,8 @@ spec:
       # NO se usa podAntiAffinity — con 1 sola réplica no tiene sentido
       containers:
         - name: notificationservice
-          image: clickmunch/notificationservice:latest
-          imagePullPolicy: Never
+          image: us.icr.io/tech-summit/notificationservice:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 8087
               name: http

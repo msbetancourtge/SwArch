@@ -81,7 +81,7 @@ fi
 echo ""
 echo "--- Prueba de conectividad post-failover ---"
 if [[ "$TARGET" == "apigateway" ]]; then
-  GW_URL=$(minikube service apigateway -n "$NS" --url 2>/dev/null || echo "http://$(minikube ip):30080")
+  GW_URL=$(oc get route apigateway -n "$NS" -o jsonpath='{"http://"}{.spec.host}' 2>/dev/null || echo "http://localhost:8080")
   echo "==> GET $GW_URL/actuator/health"
   curl -s "$GW_URL/actuator/health" | python3 -m json.tool 2>/dev/null || \
   curl -s "$GW_URL/actuator/health"
