@@ -7,6 +7,8 @@
 
 ## 4.1 Información del Equipo
 
+| # | Nombre |
+|--|---|
 | 1 | Michael Stiven Betancourt Gelves |
 | 2 | Santiago Bejarano Ariza |
 | 3 | Santiago Suaza Montalvo|
