@@ -3,6 +3,7 @@ package com.clickmunch.ReservationService.service;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -34,7 +35,9 @@ import lombok.RequiredArgsConstructor;
 public class ReservationService {
 
     private static final Logger log = LoggerFactory.getLogger(ReservationService.class);
+    private static final ZoneId RESERVATION_ZONE = ZoneId.of("America/Bogota");
     private static final int RESERVATION_DURATION_MINUTES = 45;
+    private static final int MIN_RESERVATION_ADVANCE_MINUTES = 60;
 
     private final ReservationRepository reservationRepository;
     private final RestaurantClient restaurantClient;
@@ -42,6 +45,7 @@ public class ReservationService {
 
     @Transactional
     public ReservationResponse createReservation(CreateReservationRequest request) {
+        validateReservationLeadTime(request.reservationDate(), request.reservationTime());
         validateRestaurantSchedule(request.restaurantId(), request.reservationDate(), request.reservationTime());
 
         Reservation reservation = Reservation.builder()
@@ -220,6 +224,9 @@ public class ReservationService {
                 !slotTime.plusMinutes(RESERVATION_DURATION_MINUTES).isAfter(operatingWindow.closeTime());
                 slotTime = slotTime.plusMinutes(30)) {
             final LocalTime currentSlot = slotTime;
+            if (!hasMinimumLeadTime(date, currentSlot)) {
+                continue;
+            }
             int available = (int) candidateTables.stream()
                     .filter(table -> isTableAvailableForSchedule(table.id(), date, currentSlot, null))
                     .count();
@@ -303,6 +310,19 @@ public class ReservationService {
         )) {
             throw new IllegalStateException("Table already has a reservation in that time window");
         }
+    }
+
+    private void validateReservationLeadTime(LocalDate date, LocalTime reservationTime) {
+        if (!hasMinimumLeadTime(date, reservationTime)) {
+            throw new IllegalStateException("Reservations must be made at least 1 hour in advance");
+        }
+    }
+
+    private boolean hasMinimumLeadTime(LocalDate date, LocalTime reservationTime) {
+        LocalDateTime requestedAt = LocalDateTime.of(date, reservationTime);
+        LocalDateTime earliestReservationAt = LocalDateTime.now(RESERVATION_ZONE)
+                .plusMinutes(MIN_RESERVATION_ADVANCE_MINUTES);
+        return !requestedAt.isBefore(earliestReservationAt);
     }
 
     private void validateRestaurantSchedule(Long restaurantId, LocalDate date, LocalTime reservationTime) {

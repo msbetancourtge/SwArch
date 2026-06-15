@@ -23,7 +23,13 @@ type CartMap = Record<string, number>;
 type OrderState = "idle" | "placing" | "success" | "error";
 type ReservationState = "idle" | "placing" | "success" | "error";
 
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => {
+  const date = new Date();
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
 const activeReservationStatuses = ["Pendiente", "Confirmada", "CheckedIn"];
 
 export const RestaurantPreviewDialog = ({

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { CalendarDays, Plus, RefreshCw, Users } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -52,12 +52,24 @@ const dayNames: OperatingHours["dayOfWeek"][] = [
   "SATURDAY",
 ];
 
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => {
+  const date = new Date();
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
 
 const timeToMinutes = (time: string) => {
   const [hours, minutes] = time.split(":").map(Number);
   return hours * 60 + minutes;
 };
+
+const reservationDateTimeValue = (reservation: Reservation) =>
+  new Date(`${reservation.reservationDate}T${reservation.reservationTime}`).getTime();
+
+const sortReservationsByDateTime = (first: Reservation, second: Reservation) =>
+  reservationDateTimeValue(first) - reservationDateTimeValue(second);
 
 const reservationsOverlap = (first: Reservation, second: Reservation) => {
   if (first.reservationDate !== second.reservationDate) return false;
@@ -144,6 +156,44 @@ export const AdminReservationsPage = () => {
       return matchesStatus && matchesSearch;
     });
   }, [reservations, search, statusFilter, tableById]);
+
+  const groupedReservations = useMemo(() => {
+    const currentDate = today();
+    const todayReservations: Reservation[] = [];
+    const otherDaysReservations: Reservation[] = [];
+    const closedReservations: Reservation[] = [];
+
+    for (const reservation of filtered) {
+      if (terminalStatuses.includes(reservation.status)) {
+        closedReservations.push(reservation);
+      } else if (reservation.reservationDate === currentDate) {
+        todayReservations.push(reservation);
+      } else {
+        otherDaysReservations.push(reservation);
+      }
+    }
+
+    return [
+      {
+        key: "today",
+        title: "Reservas de hoy",
+        description: "La hora más próxima aparece primero.",
+        reservations: todayReservations.sort(sortReservationsByDateTime),
+      },
+      {
+        key: "other-days",
+        title: "Otros días",
+        description: "Reservas activas fuera de la fecha actual.",
+        reservations: otherDaysReservations.sort(sortReservationsByDateTime),
+      },
+      {
+        key: "closed",
+        title: "Canceladas y cerradas",
+        description: "Reservas bloqueadas para edición.",
+        reservations: closedReservations.sort(sortReservationsByDateTime),
+      },
+    ].filter((group) => group.reservations.length > 0);
+  }, [filtered]);
 
   const getAssignableTables = (reservation: Reservation) => {
     return tables.filter((table) => {
@@ -253,6 +303,62 @@ export const AdminReservationsPage = () => {
     );
   }
 
+  const renderReservationRow = (reservation: Reservation) => {
+    const assignedTable = reservation.tableId ? tableById.get(reservation.tableId) : null;
+    const assignableTables = getAssignableTables(reservation);
+    const isLocked = terminalStatuses.includes(reservation.status);
+
+    return (
+      <TableRow key={reservation.id} className={isLocked ? "bg-gray-50 text-gray-500" : undefined}>
+        <TableCell className="font-medium">#{reservation.id}</TableCell>
+        <TableCell>{reservation.customerName}</TableCell>
+        <TableCell>
+          <span className="inline-flex items-center gap-1 text-gray-600">
+            <Users className="h-3.5 w-3.5" /> {reservation.partySize}
+          </span>
+        </TableCell>
+        <TableCell>{reservation.reservationDate}</TableCell>
+        <TableCell>{reservation.reservationTime}</TableCell>
+        <TableCell>
+          <Select
+            value={reservation.tableId ? String(reservation.tableId) : ""}
+            onChange={(event) => handleAssignTable(reservation, event.target.value)}
+            disabled={isLocked || isSubmitting}
+            className="min-w-36"
+          >
+            <option value="">Sin mesa</option>
+            {assignableTables.map((table) => (
+              <option
+                key={table.id}
+                value={table.id}
+                disabled={table.id !== reservation.tableId && tableHasScheduleConflict(reservation, table.id)}
+              >
+                Mesa {table.tableNumber} · {table.seats} sillas
+                {table.id === assignedTable?.id ? " · asignada" : ""}
+                {table.id !== reservation.tableId && tableHasScheduleConflict(reservation, table.id) ? " · ocupada en ese horario" : ""}
+              </option>
+            ))}
+          </Select>
+        </TableCell>
+        <TableCell>
+          <Select
+            value={reservation.status}
+            onChange={(event) => handleStatusChange(reservation, event.target.value)}
+            disabled={isLocked || isSubmitting}
+            className={`min-w-36 ${statusColors[reservation.status]}`}
+          >
+            {statusOptions.map((status) => (
+              <option key={status} value={status}>
+                {status}
+              </option>
+            ))}
+          </Select>
+        </TableCell>
+        <TableCell>{reservation.orderId ? `#${reservation.orderId}` : "-"}</TableCell>
+      </TableRow>
+    );
+  };
+
   return (
     <div className="space-y-5">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -322,61 +428,21 @@ export const AdminReservationsPage = () => {
                   </TableCell>
                 </TableRow>
               ) : (
-                filtered.map((reservation) => {
-                  const assignedTable = reservation.tableId ? tableById.get(reservation.tableId) : null;
-                  const assignableTables = getAssignableTables(reservation);
-                  const isLocked = terminalStatuses.includes(reservation.status);
-
-                  return (
-                    <TableRow key={reservation.id} className={isLocked ? "bg-gray-50 text-gray-500" : undefined}>
-                      <TableCell className="font-medium">#{reservation.id}</TableCell>
-                      <TableCell>{reservation.customerName}</TableCell>
-                      <TableCell>
-                        <span className="inline-flex items-center gap-1 text-gray-600">
-                          <Users className="h-3.5 w-3.5" /> {reservation.partySize}
-                        </span>
+                groupedReservations.map((group) => (
+                  <Fragment key={group.key}>
+                    <TableRow className="bg-gray-50">
+                      <TableCell colSpan={8} className="py-3">
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-sm font-semibold text-gray-900">{group.title}</span>
+                          <span className="text-xs text-gray-500">
+                            {group.description} {group.reservations.length} reserva{group.reservations.length === 1 ? "" : "s"}.
+                          </span>
+                        </div>
                       </TableCell>
-                      <TableCell>{reservation.reservationDate}</TableCell>
-                      <TableCell>{reservation.reservationTime}</TableCell>
-                      <TableCell>
-                        <Select
-                          value={reservation.tableId ? String(reservation.tableId) : ""}
-                          onChange={(event) => handleAssignTable(reservation, event.target.value)}
-                          disabled={isLocked || isSubmitting}
-                          className="min-w-36"
-                        >
-                          <option value="">Sin mesa</option>
-                          {assignableTables.map((table) => (
-                            <option
-                              key={table.id}
-                              value={table.id}
-                              disabled={table.id !== reservation.tableId && tableHasScheduleConflict(reservation, table.id)}
-                            >
-                              Mesa {table.tableNumber} · {table.seats} sillas
-                              {table.id === assignedTable?.id ? " · asignada" : ""}
-                              {table.id !== reservation.tableId && tableHasScheduleConflict(reservation, table.id) ? " · ocupada en ese horario" : ""}
-                            </option>
-                          ))}
-                        </Select>
-                      </TableCell>
-                      <TableCell>
-                        <Select
-                          value={reservation.status}
-                          onChange={(event) => handleStatusChange(reservation, event.target.value)}
-                          disabled={isLocked || isSubmitting}
-                          className={`min-w-36 ${statusColors[reservation.status]}`}
-                        >
-                          {statusOptions.map((status) => (
-                            <option key={status} value={status}>
-                              {status}
-                            </option>
-                          ))}
-                        </Select>
-                      </TableCell>
-                      <TableCell>{reservation.orderId ? `#${reservation.orderId}` : "-"}</TableCell>
                     </TableRow>
-                  );
-                })
+                    {group.reservations.map(renderReservationRow)}
+                  </Fragment>
+                ))
               )}
             </TableBody>
           </Table>
