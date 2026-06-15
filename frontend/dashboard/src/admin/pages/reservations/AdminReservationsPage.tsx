@@ -16,9 +16,10 @@ import { Select } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
+import { hoursService } from "@/lib/services/hoursService";
 import { reservationService } from "@/lib/services/reservationService";
 import { tableService } from "@/lib/services/tableServices";
-import type { Reservation, ReservationStatus, Table as RestaurantTable } from "@/lib/types";
+import type { OperatingHours, Reservation, ReservationStatus, Table as RestaurantTable } from "@/lib/types";
 
 const statusColors: Record<ReservationStatus, string> = {
   Pendiente: "bg-amber-100 text-amber-800",
@@ -39,14 +40,44 @@ const statusOptions: ReservationStatus[] = [
 ];
 
 const terminalStatuses: ReservationStatus[] = ["Cancelada", "Completada", "NoShow"];
+const activeReservationStatuses: ReservationStatus[] = ["Pendiente", "Confirmada", "CheckedIn"];
+const RESERVATION_DURATION_MINUTES = 45;
+const dayNames: OperatingHours["dayOfWeek"][] = [
+  "SUNDAY",
+  "MONDAY",
+  "TUESDAY",
+  "WEDNESDAY",
+  "THURSDAY",
+  "FRIDAY",
+  "SATURDAY",
+];
 
 const today = () => new Date().toISOString().slice(0, 10);
+
+const timeToMinutes = (time: string) => {
+  const [hours, minutes] = time.split(":").map(Number);
+  return hours * 60 + minutes;
+};
+
+const reservationsOverlap = (first: Reservation, second: Reservation) => {
+  if (first.reservationDate !== second.reservationDate) return false;
+  const firstStart = timeToMinutes(first.reservationTime);
+  const secondStart = timeToMinutes(second.reservationTime);
+  return firstStart < secondStart + RESERVATION_DURATION_MINUTES &&
+    secondStart < firstStart + RESERVATION_DURATION_MINUTES;
+};
+
+const getDateDayName = (date: string): OperatingHours["dayOfWeek"] => {
+  const [year, month, day] = date.split("-").map(Number);
+  return dayNames[new Date(year, month - 1, day).getDay()];
+};
 
 export const AdminReservationsPage = () => {
   const { restaurantId } = useAuth();
 
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [tables, setTables] = useState<RestaurantTable[]>([]);
+  const [operatingHours, setOperatingHours] = useState<OperatingHours[]>([]);
   const [statusFilter, setStatusFilter] = useState<ReservationStatus | "all">("all");
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
@@ -79,6 +110,8 @@ export const AdminReservationsPage = () => {
       ]);
       setReservations(reservationData);
       setTables(tableData);
+      const hoursData = await hoursService.getByRestaurantId(restaurantId);
+      setOperatingHours(hoursData);
       setError(null);
     } catch (err) {
       console.error("Error loading reservations:", err);
@@ -115,9 +148,35 @@ export const AdminReservationsPage = () => {
   const getAssignableTables = (reservation: Reservation) => {
     return tables.filter((table) => {
       if (table.id === reservation.tableId) return true;
-      return table.status === "AVAILABLE" && table.seats >= reservation.partySize;
+      return table.status !== "OCCUPIED" && table.status !== "CLEANING" && table.seats >= reservation.partySize;
     });
   };
+
+  const tableHasScheduleConflict = (reservation: Reservation, tableId: number) => {
+    return reservations.some((other) =>
+      other.id !== reservation.id &&
+      other.tableId === tableId &&
+      activeReservationStatuses.includes(other.status) &&
+      reservationsOverlap(reservation, other)
+    );
+  };
+
+  const selectedDayHours = operatingHours.find(
+    (hours) => hours.dayOfWeek === getDateDayName(formData.reservationDate)
+  );
+
+  const isFormTimeInsideSchedule = () => {
+    if (!selectedDayHours) return false;
+    const start = timeToMinutes(formData.reservationTime);
+    const end = start + RESERVATION_DURATION_MINUTES;
+    return start >= timeToMinutes(selectedDayHours.openTime) && end <= timeToMinutes(selectedDayHours.closeTime);
+  };
+
+  const scheduleError = !selectedDayHours
+    ? "El restaurante no tiene horario para ese día."
+    : !isFormTimeInsideSchedule()
+      ? `La reserva debe terminar antes de ${selectedDayHours.closeTime.slice(0, 5)}.`
+      : null;
 
   const handleAssignTable = async (reservation: Reservation, value: string) => {
     const tableId = Number(value);
@@ -151,6 +210,10 @@ export const AdminReservationsPage = () => {
     if (restaurantId === null) return;
     const customerId = Number(formData.customerId);
     if (!Number.isFinite(customerId) || customerId <= 0 || !formData.customerName.trim()) return;
+    if (scheduleError) {
+      window.alert(scheduleError);
+      return;
+    }
     setIsSubmitting(true);
     try {
       await reservationService.create({
@@ -284,9 +347,14 @@ export const AdminReservationsPage = () => {
                         >
                           <option value="">Sin mesa</option>
                           {assignableTables.map((table) => (
-                            <option key={table.id} value={table.id}>
+                            <option
+                              key={table.id}
+                              value={table.id}
+                              disabled={table.id !== reservation.tableId && tableHasScheduleConflict(reservation, table.id)}
+                            >
                               Mesa {table.tableNumber} · {table.seats} sillas
                               {table.id === assignedTable?.id ? " · asignada" : ""}
+                              {table.id !== reservation.tableId && tableHasScheduleConflict(reservation, table.id) ? " · ocupada en ese horario" : ""}
                             </option>
                           ))}
                         </Select>
@@ -358,6 +426,8 @@ export const AdminReservationsPage = () => {
               <Input
                 id="reservationTime"
                 type="time"
+                min={selectedDayHours?.openTime.slice(0, 5)}
+                max={selectedDayHours?.closeTime.slice(0, 5)}
                 value={formData.reservationTime}
                 onChange={(event) => setFormData({ ...formData, reservationTime: event.target.value })}
               />
@@ -381,6 +451,7 @@ export const AdminReservationsPage = () => {
               />
             </div>
           </div>
+          {scheduleError && <p className="text-sm text-red-600">{scheduleError}</p>}
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsCreateOpen(false)} disabled={isSubmitting}>
@@ -388,7 +459,7 @@ export const AdminReservationsPage = () => {
             </Button>
             <Button
               onClick={handleCreate}
-              disabled={isSubmitting || !formData.customerId || !formData.customerName.trim()}
+              disabled={isSubmitting || !formData.customerId || !formData.customerName.trim() || Boolean(scheduleError)}
             >
               Crear reserva
             </Button>

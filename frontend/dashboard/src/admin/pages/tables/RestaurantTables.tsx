@@ -816,6 +816,18 @@ export const TablesPage = () => {
             </div>
           </div>
 
+          <div className="flex flex-wrap gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs text-gray-600">
+            <span className="inline-flex items-center gap-1"><Armchair className="h-3.5 w-3.5 text-emerald-600" /> Silla</span>
+            <span className="inline-flex items-center gap-1"><Square className="h-3.5 w-3.5 text-amber-600" /> Recuadro de mesa</span>
+            <span className="inline-flex items-center gap-1"><ChefHat className="h-3.5 w-3.5 text-orange-600" /> Órdenes activas</span>
+            <span className="inline-flex items-center gap-1"><Grid3X3 className="h-3.5 w-3.5 text-blue-600" /> {gridCols} x {gridRows}</span>
+            {Object.entries(statusLabels).map(([status, label]) => (
+              <span key={status} className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 ${statusColors[status as TableStatus]}`}>
+                {label}
+              </span>
+            ))}
+          </div>
+
           <div className="overflow-auto rounded-lg border border-gray-200 bg-gray-50 p-3">
             {loading ? (
               <div className="flex items-center justify-center py-20 text-gray-500">
@@ -834,17 +846,6 @@ export const TablesPage = () => {
             )}
           </div>
 
-          <div className="flex flex-wrap gap-3 text-xs text-gray-600">
-            <span className="inline-flex items-center gap-1"><Armchair className="h-3.5 w-3.5 text-emerald-600" /> Silla</span>
-            <span className="inline-flex items-center gap-1"><Square className="h-3.5 w-3.5 text-amber-600" /> Recuadro de mesa</span>
-            <span className="inline-flex items-center gap-1"><ChefHat className="h-3.5 w-3.5 text-orange-600" /> Órdenes activas</span>
-            <span className="inline-flex items-center gap-1"><Grid3X3 className="h-3.5 w-3.5 text-blue-600" /> {gridCols} x {gridRows}</span>
-            {Object.entries(statusLabels).map(([status, label]) => (
-              <span key={status} className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 ${statusColors[status as TableStatus]}`}>
-                {label}
-              </span>
-            ))}
-          </div>
           {kitchenError && (
             <p className="text-xs text-amber-700">{kitchenError}</p>
           )}
