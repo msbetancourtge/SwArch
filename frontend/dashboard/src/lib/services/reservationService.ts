@@ -1,6 +1,9 @@
 import type { Reservation, ReservationStatus } from "@/lib/types";
 
-const API_GATEWAY_BASE = import.meta.env.VITE_API_GATEWAY_BASE ?? "http://localhost:8080";
+// Default to a same-origin relative base so requests flow through the Vite dev
+// proxy (which terminates the gateway's self-signed TLS). Override in prod with
+// VITE_API_GATEWAY_BASE = https://<gateway>.
+const API_GATEWAY_BASE = import.meta.env.VITE_API_GATEWAY_BASE ?? "";
 
 type CreateReservationData = {
   customerId: number;

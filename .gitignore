@@ -89,5 +89,13 @@ __pycache__/
 # Environment files (contain credentials)
 /backend/.env
 
+# TLS keystores / certificates — generated at build time, never commit.
+certs/
+**/certs/
+*.p12
+*.jks
+*.pem
+*.key
+
 # pnpm lock file (team uses npm)
 pnpm-lock.yaml
