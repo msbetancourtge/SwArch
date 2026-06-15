@@ -57,7 +57,7 @@ El gateway reescribe las rutas entrantes hacia la API interna de cada servicio. 
   - Routing keys: `order.created`, `order.status.changed`, `reservation.confirmed`, `reservation.cancelled`, `notification.send`
   - Colas: `notification.order.queue`, `notification.reservation.queue`, `notification.telegram.queue`
   - Serialización: Jackson2JsonMessageConverter (JSON)
-- Patrón Mediator (Interoperabilidad con Telegram): NotificationService implementa un Worker (`TelegramWorker`) que consume la cola `notification.telegram.queue` y entrega mensajes a la API de Telegram. El sistema core publica eventos genéricos sin conocer la existencia de Telegram; el Worker es el único componente con ese conocimiento. Requiere la variable de entorno `TELEGRAM_BOT_TOKEN`.
+- Patrón Mediator (Interoperabilidad con Telegram): NotificationService implementa un Worker (`TelegramWorker`) que consume la cola `notification.telegram.queue` y entrega mensajes a la API de Telegram. El flujo es completamente automático: cuando el usuario vincula su cuenta de Telegram (voluntariamente via `PATCH /auth/users/{id}/telegram`), `NotificationEventConsumer` consulta el `telegramChatId` en AuthService al procesar cada evento y lo pasa al Worker. `OrderService` y `ReservationService` no tienen conocimiento de Telegram. Requiere la variable de entorno `TELEGRAM_BOT_TOKEN`.
 
 ## API Gateway (Punto Único de Acceso)
 

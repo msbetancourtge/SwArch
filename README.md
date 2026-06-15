@@ -93,6 +93,7 @@ The architecture is built around independent microservices—authentication, res
 | OrderService | RabbitMQ | AMQP | Publish `ORDER_CREATED`, `ORDER_STATUS_CHANGED` |
 | ReservationService | RabbitMQ | AMQP | Publish `RESERVATION_CREATED` |
 | RabbitMQ | NotificationService | AMQP | Event delivery |
+| NotificationService → AuthService | HTTP | REST | `NotificationEventConsumer` fetches `telegramChatId` per user before dispatching Telegram events |
 | NotificationService (TelegramWorker) | Telegram Bot API | HTTPS/REST | Delivers alerts via `POST /bot{token}/sendMessage` — only component aware of Telegram |
 | Each service | Own DB | JDBC / MongoDB | Each service owns exactly one database |
 

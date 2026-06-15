@@ -9,27 +9,44 @@ Microservicio de notificaciones para Click & Munch. Responsable de consumir even
 Este servicio implementa el atributo de calidad de **Interoperabilidad** mediante el patrón **Mediator**, donde RabbitMQ actúa como el mediador centralizado que desacopla totalmente al sistema core de cualquier canal de entrega externo.
 
 ```
-┌──────────────────┐    routing key           ┌─────────────────────┐
-│   OrderService   │ ──"notification.send"──▶ │  clickmunch.events  │
-│ ReservationService│                          │   (TopicExchange)   │
-│  (Emisores)      │                          │   [MEDIATOR]        │
+ Usuario vincula Telegram (voluntario)
+ PATCH /auth/users/{id}/telegram → chatId guardado en AuthService
+                                                    │
+                                                    │ (consultado en tiempo de evento)
+                                                    │
+┌──────────────────┐   order.created          ┌────▼────────────────┐
+│   OrderService   │ ─"order.status.changed"─▶│  clickmunch.events  │
+│ ReservationService│  reservation.confirmed   │   (TopicExchange)   │
+│  (Emisores)      │  reservation.cancelled   │   [MEDIATOR]        │
 └──────────────────┘                          └──────────┬──────────┘
   No saben nada                                          │
-  de Telegram                                 binding: "notification.send"
-                                                         │
-                                ┌────────────────────────▼──────────────────────┐
-                                │         notification.telegram.queue            │
-                                └────────────────────────┬──────────────────────┘
-                                                         │
-                                                         ▼
+  de Telegram                                            ▼
+                                          ┌──────────────────────────┐
+                                          │  NotificationEventConsumer│
+                                          │  1. Recibe evento        │
+                                          │  2. GET AuthService      │
+                                          │     → telegramChatId?    │
+                                          │  3. createNotification() │
+                                          └──────────┬───────────────┘
+                                    chatId != null   │
+                                          ┌──────────▼───────────────┐
+                                          │ TelegramNotificationPublisher│
+                                          │ routing key:             │
+                                          │ "notification.send"      │
+                                          └──────────┬───────────────┘
+                                                     ▼
+                                          ┌──────────────────────────┐
+                                          │  notification.telegram   │
+                                          │        .queue            │
+                                          └──────────┬───────────────┘
+                                                     ▼
                                           ┌──────────────────────────┐
                                           │      TelegramWorker      │
-                                          │  (Consumidor + Adaptador)│
                                           │  ÚNICO componente que    │
                                           │  conoce la API Telegram  │
-                                          └──────────────┬───────────┘
-                                                         │  HTTP POST
-                                                         ▼
+                                          └──────────┬───────────────┘
+                                                     │  HTTP POST
+                                                     ▼
                                           ┌──────────────────────────┐
                                           │    api.telegram.org      │
                                           │  /bot{token}/sendMessage │
@@ -118,16 +135,71 @@ TelegramWorker
 └── TelegramApiException (error handling interno)
 ```
 
-### 4. Integración en `NotificationService`
+### 4. `AuthServiceClient` — Lookup del chatId
 
-El servicio core delega a Telegram de forma opcional. Si la solicitud incluye `telegramChatId`, encola el envío sin bloquear ni conocer el destino:
+Componente HTTP que consulta `GET /api/auth/users/{userId}` en AuthService para obtener el `telegramChatId` del usuario en tiempo de evento. Si AuthService no está disponible o el usuario no tiene chatId vinculado, devuelve `null` y el flujo continúa sin Telegram.
 
 ```java
-// Solo si el request incluye telegramChatId:
+String chatId = authServiceClient.getTelegramChatId(event.customerId());
+// null → no se invoca Telegram, la notificación llega solo por SSE
+// "7184207241" → se encola para entrega por Telegram
+```
+
+### 5. `NotificationEventConsumer` — Orquestador del flujo automático
+
+Consume los eventos de dominio (órdenes y reservaciones) y coordina los dos canales de entrega:
+
+```
+handleOrderEvent(OrderEvent)
+  ├── authServiceClient.getTelegramChatId(customerId)
+  └── notificationService.createNotification(..., telegramChatId)
+        ├── persiste en PostgreSQL
+        ├── push SSE a clientes web suscritos
+        └── si telegramChatId != null → TelegramNotificationPublisher → RabbitMQ
+```
+
+### 6. Integración en `NotificationService`
+
+El servicio delega a Telegram de forma opcional y sin bloquear:
+
+```java
 if (request.telegramChatId() != null) {
-    telegramPublisher.sendNotification(...); // fire-and-forget
+    telegramPublisher.sendNotification(...); // fire-and-forget via RabbitMQ
 }
 ```
+
+---
+
+## Notificaciones automáticas a Telegram
+
+Una vez que el usuario vincula su cuenta, estos eventos generan mensajes automáticos en Telegram:
+
+| Evento de dominio | Mensaje enviado a Telegram |
+|-------------------|--------------------------|
+| Orden creada | "Pedido recibido — Tu pedido #X en Y ha sido recibido y se está preparando. Total: $Z" |
+| Orden lista (`Ready`) | "Pedido listo — Tu pedido #X en Y está listo." |
+| Orden entregada (`Delivered`) | "Pedido entregado — Tu pedido #X ha sido entregado. ¡Buen provecho!" |
+| Orden cancelada (`Cancelled`) | "Pedido cancelado — Tu pedido #X ha sido cancelado." |
+| Reservación confirmada | "Reservación confirmada — Tu reservación en Y para N personas el [fecha] a las [hora] ha sido confirmada." |
+| Reservación cancelada | "Reservación cancelada — Tu reservación en Y para el [fecha] a las [hora] ha sido cancelada." |
+
+Si el usuario no ha vinculado Telegram (`telegram_chat_id` es `null` en AuthService), todas las notificaciones llegan únicamente por SSE a la app. El comportamiento del sistema es idéntico al original.
+
+---
+
+## Cómo vincula el usuario su Telegram (flujo voluntario)
+
+```
+1. Usuario abre Telegram → busca el bot → presiona Start
+2. Usuario va a Perfil en la app → activa "Notificaciones por Telegram"
+3. Frontend llama:
+   PATCH /auth/users/{userId}/telegram
+   { "telegramChatId": "7184207241" }
+4. AuthService guarda el chatId en users.telegram_chat_id
+5. A partir del siguiente evento, NotificationService lo consulta automáticamente
+```
+
+Para desvincular: `{ "telegramChatId": null }`
 
 ---
 
@@ -136,26 +208,28 @@ if (request.telegramChatId() != null) {
 ```
 NotificationService/
 └── src/main/java/com/clickmunch/NotificationService/
+    ├── client/
+    │   └── AuthServiceClient.java           # HTTP client → AuthService (obtiene telegramChatId)
     ├── config/
-    │   ├── RabbitMQConfig.java          # Exchange, colas y bindings (incluye cola Telegram)
-    │   └── TelegramProperties.java      # Propiedades tipadas: botToken, apiBaseUrl
+    │   ├── RabbitMQConfig.java              # Exchange, colas y bindings (incluye cola Telegram)
+    │   └── TelegramProperties.java          # Propiedades tipadas: botToken, apiBaseUrl
     ├── dto/
-    │   ├── CreateNotificationRequest.java  # Incluye campo opcional telegramChatId
+    │   ├── CreateNotificationRequest.java   # Incluye campo opcional telegramChatId
     │   └── NotificationResponse.java
     ├── entity/
     │   ├── Notification.java
     │   └── NotificationType.java
     ├── event/
-    │   ├── NotificationEventConsumer.java  # Consumidor de órdenes y reservaciones
+    │   ├── NotificationEventConsumer.java   # Consulta chatId y orquesta ambos canales
     │   ├── OrderEvent.java
     │   ├── ReservationEvent.java
-    │   ├── TelegramNotificationEvent.java  # Contrato del mensaje Telegram
-    │   └── TelegramWorker.java             # Worker: consume cola y llama a Telegram
+    │   ├── TelegramNotificationEvent.java   # Contrato del mensaje Telegram
+    │   └── TelegramWorker.java              # Worker: consume cola y llama a Telegram
     ├── repository/
     │   └── NotificationRepository.java
     ├── service/
-    │   ├── NotificationService.java             # Lógica de negocio + SSE
-    │   └── TelegramNotificationPublisher.java   # Emisor: publica en RabbitMQ
+    │   ├── NotificationService.java              # Lógica de negocio + SSE
+    │   └── TelegramNotificationPublisher.java    # Emisor: publica en RabbitMQ
     └── NotificationServiceApplication.java
 ```
 
