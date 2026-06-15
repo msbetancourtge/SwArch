@@ -44,3 +44,6 @@ management:
 telegram:
   bot-token: ${TELEGRAM_BOT_TOKEN}
   api-base-url: ${TELEGRAM_API_BASE_URL:https://api.telegram.org}
+
+services:
+  auth-url: ${AUTH_SERVICE_URL:http://localhost:8081}
