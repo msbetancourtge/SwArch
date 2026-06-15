@@ -167,7 +167,7 @@ NotificationService/
 
 | Variable | Descripción | Ejemplo |
 |----------|-------------|---------|
-| `TELEGRAM_BOT_TOKEN` | Token del bot entregado por @BotFather | `8802482131:AAEFNdpa...` |
+| `TELEGRAM_BOT_TOKEN` | Token del bot entregado por @BotFather | `1234567890:AAExxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx` |
 | `SPRING_RABBITMQ_HOST` | Host de RabbitMQ | `rabbitmq` (Docker) / `localhost` |
 | `SPRING_RABBITMQ_PORT` | Puerto AMQP | `5672` |
 | `SPRING_RABBITMQ_USERNAME` | Usuario de RabbitMQ | `mike` |
@@ -190,7 +190,7 @@ telegram:
 
 1. Abre Telegram y busca **`@BotFather`**.
 2. Envía `/newbot` y sigue las instrucciones (nombre y username del bot).
-3. BotFather te entrega el token: `8802482131:AAEFNdpaHgiXMENdyl52aLpX8...`
+3. BotFather te entrega el token: `1234567890:AAExxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`
 
 ### 2. Obtener el chat_id del destinatario
 
@@ -275,7 +275,7 @@ TELEGRAM_BOT_TOKEN=tu_token docker compose up --build notificationservice rabbit
 O agregando `TELEGRAM_BOT_TOKEN` al archivo `.env` del proyecto:
 
 ```env
-TELEGRAM_BOT_TOKEN=8802482131:AAEFNdpaHgiXMENdyl52aLpX8_H7DDowYeU
+TELEGRAM_BOT_TOKEN=YOUR_BOT_TOKEN_HERE
 ```
 
 ---
