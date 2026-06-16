@@ -338,9 +338,9 @@ However, it is estimated that the knee occurs below 2000 concurrent users. Up to
 At that point, response times spiked and the error rate reached 6%, demonstrating resource saturation (request queues, increased latency, and general degradation).
 
 With this information, it is decided to implement the Throttler pattern, defining a global limit of 1100 req/s and a per-user (IP) limit of 25 req/s (per the group's criteria).
-# Interoperability in Click & Munch
+# 7.Interoperability in Click & Munch
 
-## 7. Applied interoperability pattern
+## Applied interoperability pattern
 
 The Click & Munch project implements interoperability mainly in the backend using the **Mediator** pattern combined with a **message broker** (RabbitMQ).
 
