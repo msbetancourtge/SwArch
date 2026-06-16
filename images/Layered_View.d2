@@ -1,0 +1,62 @@
+# Click & Munch — Layered View
+# Render:  d2 --layout elk Layered_View.d2 Layered_View.png
+
+direction: down
+
+vars: {
+  d2-config: { theme-id: 0 }
+}
+
+classes: {
+  wrap: { style: { fill: "#ffffff"; stroke: "#ffffff"; stroke-width: 1 } }
+  band: { style: { fill: "#ffffff"; stroke: "#e6e6e6"; stroke-width: 1; font-color: "#c0561f"; bold: true } }
+  card: { style: { fill: "#ffffff"; stroke: "#d0d0d0"; stroke-width: 1; border-radius: 8; font-color: "#222222" } }
+  gw:   { style: { fill: "#fff9f3"; stroke: "#e0b48a"; stroke-width: 1; border-radius: 8; font-color: "#7a3414" } }
+  bus:  { style: { fill: "#fdf6e3"; stroke: "#ecd9a6"; stroke-width: 1; border-radius: 8; font-color: "#9a6b1f" } }
+  db:   { style: { fill: "#ecf8ee"; stroke: "#b6dcb9"; stroke-width: 1; border-radius: 8; font-color: "#2f6b34" } }
+}
+
+stack: "" {
+  class: wrap
+  grid-rows: 5
+  grid-gap: 18
+
+  c0: "CAPA 0 — PRESENTACIÓN" {
+    class: band
+    grid-columns: 2
+    m: "Mobile App\nReact Native · Expo SDK 54 · TS" { class: card }
+    d: "Web Dashboard\nReact 19 · Vite · TypeScript" { class: card }
+  }
+
+  c1: "CAPA 1 — EDGE · CANAL SEGURO (TLS)" {
+    class: band
+    g: "🔒 API Gateway — HTTPS/WSS terminado aquí\nJWT Filter → Path Rewriter → URI Resolver → Proxy\nSpring Cloud Gateway WebFlux · Java 21 · :8080 (único punto público)" { class: gw }
+  }
+
+  c2: "CAPA 2 — SERVICIOS DE NEGOCIO (HTTP plano dentro de appnet)" {
+    class: band
+    grid-columns: 9
+    auth:     "AuthService\nJava" { class: card }
+    rest:     "RestaurantSvc\nJava" { class: card }
+    geo:      "GeoService\nJava · PostGIS" { class: card }
+    menu:     "MenuService ×3\nJava · MongoDB · nginx-menu (LB)" { class: card }
+    order:    "OrderService\nJava" { class: card }
+    resv:     "ReservationSvc\nJava" { class: card }
+    checkout: "CheckoutSvc\nPython" { class: card }
+    rating:   "RatingService\nJava" { class: card }
+    notif:    "NotificationSvc\nJava · SSE" { class: card }
+  }
+
+  c3: "CAPA 3 — MENSAJERÍA ASÍNCRONA" {
+    class: band
+    r: "RabbitMQ — clickmunch.events (topic)\norder.created · order.status · reservation.confirmed · reservation.cancelled" { class: bus }
+  }
+
+  c4: "CAPA 4 — BASES DE DATOS" {
+    class: band
+    grid-columns: 3
+    pg:      "PostgreSQL ×6\nauth · rest · order · reserv · rating · notif" { class: db }
+    postgis: "PostGIS 16-3.4\ngeo_db" { class: db }
+    mongo:   "MongoDB 7\nmenu_db" { class: db }
+  }
+}

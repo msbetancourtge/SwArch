@@ -214,6 +214,10 @@ services:
     build: ./MenuService
     # container_name: menuservice
     # Internal only: reach via apigateway:/menu/**.
+    # Scaled to 3 replicas behind nginx-menu (see nginx/menu.conf upstream).
+    # Compose names them backend-menuservice-1/2/3 on appnet.
+    deploy:
+      replicas: 3
     expose:
       - "8084"
     environment:
