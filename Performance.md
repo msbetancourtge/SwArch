@@ -33,7 +33,7 @@ ClickAndMunch
 
 ## Performance Tactic
 The main implemented tactic is **Maintain Multiple Copies of
-Computationss** and **increase available computational resource** by distributing incoming requests across multiple service instances.
+Computation** and **increase available computational resource** by distributing incoming requests across multiple service instances.
 
 ---
 
