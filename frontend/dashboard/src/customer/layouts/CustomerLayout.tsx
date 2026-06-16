@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { LayoutGrid, LogOut, MapPin, Search } from "lucide-react";
+import { KeyRound, LayoutGrid, LogOut, MapPin, Search } from "lucide-react";
 import { Navigate, useNavigate } from "react-router";
 
+import { AccountSettingsModal } from "@/admin/components/AccountSettingsModal";
 import { RestaurantList } from "@/admin/components/restaurants/RestaurantList";
 import { RestaurantPreviewDialog } from "@/admin/components/restaurants/RestaurantPreviewDialog";
 import { RestaurantsMap } from "@/admin/components/restaurants/RestaurantsMap";
@@ -27,6 +28,7 @@ export const CustomerLayout = () => {
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState<"list" | "map">("list");
   const [geoStatus, setGeoStatus] = useState<GeoStatus>("requesting");
+  const [configOpen, setConfigOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -95,6 +97,11 @@ export const CustomerLayout = () => {
     navigate("/auth/login");
   };
 
+  const handleOpenSettings = () => {
+    setConfigOpen(true);
+    setDropdownOpen(false);
+  };
+
   return (
     <div className="min-h-screen bg-slate-50">
       <header className="border-b border-gray-200 bg-white px-6 py-5 shadow-sm">
@@ -113,6 +120,12 @@ export const CustomerLayout = () => {
             </button>
             {dropdownOpen && (
               <div className="absolute right-0 z-20 mt-3 w-44 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xl">
+                <button
+                  onClick={handleOpenSettings}
+                  className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm text-gray-700 hover:bg-gray-50"
+                >
+                  <KeyRound className="h-4 w-4" /> Configuración
+                </button>
                 <button
                   onClick={handleLogout}
                   className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm text-gray-700 hover:bg-gray-50"
@@ -216,6 +229,13 @@ export const CustomerLayout = () => {
         onOpenChange={(open) => {
           if (!open) setSelectedRestaurant(null);
         }}
+      />
+
+      <AccountSettingsModal
+        open={configOpen}
+        onClose={() => setConfigOpen(false)}
+        username={getCurrentUsername() ?? userName}
+        role={userRole ?? "CUSTOMER"}
       />
     </div>
   );
