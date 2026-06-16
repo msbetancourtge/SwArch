@@ -1,62 +1,59 @@
-# Interoperabilidad en Click & Munch
+# Interoperability in Click & Munch
 
-## 1. Patrón de interoperabilidad aplicado
+## 1. Applied interoperability pattern
 
-El proyecto Click & Munch implementa la interoperabilidad principalmente en el backend a través del patrón **Mediator** combinado con un **broker de mensajes** (RabbitMQ).
+The Click & Munch project implements interoperability mainly in the backend using the **Mediator** pattern combined with a **message broker** (RabbitMQ).
 
-### 1.1 ¿Dónde se aplica?
+### 1.1 Where it applies
 
-- `NotificationService` es el componente que materializa la interoperabilidad.
-- `OrderService` y `ReservationService` publican eventos de dominio sin conocer los canales de entrega externos.
-- `RabbitMQ` actúa como mediador central entre los emisores de eventos y los consumidores de notificaciones.
-- `TelegramWorker` es el único componente que conoce la API de Telegram.
-- `AuthService` es consultado por el `NotificationService` para obtener el `telegramChatId` del usuario.
+- `NotificationService` is the component that materializes interoperability.
+- `OrderService` and `ReservationService` publish domain events without knowing the external delivery channels.
+- `RabbitMQ` acts as the central mediator between event producers and notification consumers.
+- `TelegramWorker` is the only component that knows the Telegram API.
+- `AuthService` is queried by `NotificationService` to obtain the user's `telegramChatId`.
 
-### 1.2 Cómo se logra el desacoplamiento
+### 1.2 How decoupling is achieved
 
-- Los servicios core (`OrderService`, `ReservationService`) publican eventos genéricos como `order.created`, `order.status.changed`, `reservation.confirmed`, `reservation.cancelled`.
-- Estos eventos pasan al exchange `clickmunch.events` de tipo **topic**.
-- `NotificationService` consume los eventos y genera notificaciones internas (persistencia + SSE).
-- Si el usuario tiene Telegram vinculado, `NotificationService` publica un evento adicional con routing key `notification.send` hacia la cola `notification.telegram.queue`.
-- `TelegramWorker` consume esa cola y realiza el `HTTP POST` a `https://api.telegram.org/bot{token}/sendMessage`.
+- Core services (`OrderService`, `ReservationService`) publish generic events such as `order.created`, `order.status.changed`, `reservation.confirmed`, `reservation.cancelled`.
+- These events are sent to the `clickmunch.events` exchange of type **topic**.
+- `NotificationService` consumes the events and creates internal notifications (persistence + SSE).
+- If the user has Telegram linked, `NotificationService` publishes an additional event with routing key `notification.send` to the `notification.telegram.queue`.
+- `TelegramWorker` consumes that queue and performs the `HTTP POST` to `https://api.telegram.org/bot{token}/sendMessage`.
 
-### 1.3 Beneficios del patrón en el proyecto
+### 1.3 Pattern benefits in the project
 
-- **Interoperabilidad sin acoplamiento**: los productores no requieren conocimiento de Telegram ni de otros canales.
-- **Extensibilidad**: agregar un nuevo canal de notificación (email, WhatsApp, SMS) solo requiere añadir un nuevo worker o consumidor, sin cambiar los servicios core.
-- **Resiliencia**: fallos en el canal externo no afectan directamente el flujo principal de órdenes y reservaciones.
-- **Separación de responsabilidades**: `NotificationService` gestiona la lógica de notificaciones y `TelegramWorker` se encarga del adaptador externo.
+- **Decoupled interoperability**: producers do not need knowledge of Telegram or other channels.
+- **Extensibility**: adding a new notification channel (email, WhatsApp, SMS) only requires adding a new worker or consumer, without changing core services.
+- **Resilience**: external channel failures do not directly affect the main order and reservation flows.
+- **Separation of concerns**: `NotificationService` handles notification logic while `TelegramWorker` handles the external adapter.
 
-### 1.4 Elementos clave del diseño
+### 1.4 Key design elements
 
-- `clickmunch.events` → Exchange topic de RabbitMQ.
-- `notification.order.queue`, `notification.reservation.queue`, `notification.telegram.queue` → colas durables.
-- `NotificationEventConsumer` → consulta `AuthService` para obtener el `telegramChatId` y crea la notificación.
-- `TelegramNotificationPublisher` → publica mensajes abstractos sin lógica de Telegram.
-- `TelegramWorker` → adaptador final que conoce la API externa de Telegram.
+- `clickmunch.events` → RabbitMQ topic exchange.
+- `notification.order.queue`, `notification.reservation.queue`, `notification.telegram.queue` → durable queues.
+- `NotificationEventConsumer` → queries `AuthService` to obtain the `telegramChatId` and creates the notification.
+- `TelegramNotificationPublisher` → publishes abstract messages without Telegram logic.
+- `TelegramWorker` → final adapter that knows the external Telegram API.
 
 ---
 
-## 2. Escenario de calidad de interoperabilidad
+## 2. Interoperability quality scenario
 
-| Atributo | Descripción |
+| Attribute | Description |
 |----------|-------------|
-| **Fuente** | Eventos de dominio emitidos por servicios internos (`OrderService`, `ReservationService`) y usuarios con Telegram vinculado. |
-| **Estímulo** | Se genera un evento de orden o reservación y el usuario tiene un `telegramChatId` válido. |
-| **Artefacto** | Pipeline de interoperabilidad: RabbitMQ `clickmunch.events`, `NotificationService`, `TelegramWorker`, `AuthService`. |
-| **Ambiente** | Operación normal en el entorno de backend con RabbitMQ disponible y `NotificationService` desplegado. |
-| **Respuesta** | El evento se consume y se procesa: se guarda la notificación interna, se entrega por SSE y se encola el envío a Telegram. |
-| **Medida de respuesta** | - Evento procesado en < 500 ms.
-- Publicación en `notification.telegram.queue` en < 200 ms.
-- El servicio productor no requiere cambios para soportar el canal Telegram.
-- Error en Telegram no bloquea la persistencia o la entrega SSE. |
+| **Source** | Domain events emitted by internal services (`OrderService`, `ReservationService`) and users with Telegram linked. |
+| **Stimulus** | An order or reservation event is generated and the user has a valid `telegramChatId`. |
+| **Artifact** | `NotificationService` interoperability pipeline. |
+| **Environment** | Normal operation in the backend environment with RabbitMQ available and `NotificationService` deployed. |
+| **Response** | The event is consumed and processed: the internal notification is stored, delivered via SSE, and the Telegram send request is enqueued. |
+| **Response Measure** | - Event processed in < 500 ms.<br>- Published to `notification.telegram.queue` in < 200 ms.<br>- Producer service does not need changes to support the Telegram channel.<br>- Telegram errors do not block persistence or SSE delivery. |
 
-### 2.1 Justificación del escenario
+### 2.1 Scenario justification
 
-Este escenario demuestra que la interoperabilidad del sistema permite conectar el core de negocio con un canal externo (Telegram) sin que los servicios de orden y reservación conozcan la implementación externa. El valor de calidad reside en la capacidad de integrar nuevos canales con mínima modificación del sistema y en mantener un comportamiento coherente hacia el usuario aun si el canal externo falla.
+This scenario shows that the system's interoperability allows the business core to connect to an external channel (Telegram) without the order and reservation services knowing the external implementation. The quality value lies in the ability to integrate new channels with minimal system changes and maintain consistent user behavior even if the external channel fails.
 
-### 2.2 Observaciones de calidad
+### 2.2 Quality observations
 
-- El sistema puede ampliarse a otros canales de mensajería con un nuevo worker que escuche una cola diferente.
-- La interoperabilidad depende de un mediador centralizado (`RabbitMQ`), lo que hace que este componente sea crítico para la disponibilidad del flujo de notificaciones.
-- Mantener el contrato del evento y la separación entre productor y consumidor es clave para preservar la calidad de interoperabilidad.
+- The system can be extended to other messaging channels with a new worker listening to a different queue.
+- Interoperability depends on a centralized mediator (`RabbitMQ`), which makes this component critical for notification flow availability.
+- Maintaining the event contract and the producer/consumer separation is key to preserving interoperability quality.
