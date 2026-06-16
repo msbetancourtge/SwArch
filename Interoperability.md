@@ -27,7 +27,28 @@ The Click & Munch project implements interoperability mainly in the backend usin
 - **Resilience**: external channel failures do not directly affect the main order and reservation flows.
 - **Separation of concerns**: `NotificationService` handles notification logic while `TelegramWorker` handles the external adapter.
 
-### 1.4 Key design elements
+### 1.4 Mediator pattern description
+
+The system uses the **Mediator** pattern to centralize communication between domain event producers and delivery channels. In this case, `RabbitMQ` acts as the mediator:
+
+- Producers (`OrderService`, `ReservationService`) send generic domain events to the broker.
+- The broker routes those events to one or more consumers without producers knowing the consumers.
+- `NotificationService` receives events and decides whether to create internal notifications, send SSE, or publish a Telegram send request.
+- `TelegramWorker` is the final consumer that knows the external Telegram API.
+
+This keeps the core services focused on business logic while the mediator handles distribution and integration with external channels.
+
+### 1.5 Design tactics applied
+
+The following design tactics were applied to achieve interoperability quality:
+
+- **Message-based decoupling**: events are transported through RabbitMQ rather than direct service-to-service calls.
+- **Single responsibility**: notification creation, event routing, and external delivery are separated across different components.
+- **Explicit channel isolation**: the Telegram integration is isolated in `TelegramWorker`, so external API changes stay localized.
+- **Asynchronous delivery**: using queues prevents Telegram delivery latency or failure from blocking the core workflow.
+- **Optional integration**: Telegram is optional; users without a linked chat ID still receive notifications through SSE.
+
+### 1.6 Key design elements
 
 - `clickmunch.events` → RabbitMQ topic exchange.
 - `notification.order.queue`, `notification.reservation.queue`, `notification.telegram.queue` → durable queues.
