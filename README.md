@@ -409,11 +409,11 @@ The following design tactics were applied to achieve interoperability quality:
 | **Response** | The event is consumed and processed: the internal notification is stored, delivered via SSE, and the Telegram send request is enqueued. |
 | **Response Measure** | - Event processed in < 500 ms.<br>- Published to `notification.telegram.queue` in < 200 ms.<br>- Producer service does not need changes to support the Telegram channel.<br>- Telegram errors do not block persistence or SSE delivery. |
 
-### 7.8 Scenario justification
+### Scenario justification
 
 This scenario shows that the system's interoperability allows the business core to connect to an external channel (Telegram) without the order and reservation services knowing the external implementation. The quality value lies in the ability to integrate new channels with minimal system changes and maintain consistent user behavior even if the external channel fails.
 
-### 7.9 Quality observations
+### Quality observations
 
 - The system can be extended to other messaging channels with a new worker listening to a different queue.
 - Interoperability depends on a centralized mediator (`RabbitMQ`), which makes this component critical for notification flow availability.
