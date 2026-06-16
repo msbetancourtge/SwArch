@@ -266,7 +266,80 @@ TLS is terminated at the API Gateway, the only publicly reachable container. It 
 
 ---
 
-## 5. Prototype
+## 5. Performance and Reliability
+
+---
+
+### 5.1 Load Balancer
+
+The Load Balancer pattern was implemented to distribute incoming requests across multiple instances of the Menu service, preventing the saturation of a single node and improving the scalability and availability of the system.
+
+### Quality Scenario:
+
+| Attribute          | Description |
+|--------------------|-------------|
+| **Source**         | Clients/Users |
+| **Stimulus**       | The users generate 100 menu requests per second (100 req/s) |
+| **Artifact**       | Load Balancer and Menu Service instances |
+| **Environment**    | Normal operation in a local development environment |
+| **Response**       | The load balancer distributes incoming requests evenly across the available Menu Service instances |
+| **Response Measure** | - Response time < 300 ms  <br> - CPU utilization < 80%  <br> - Error rate < 1% |
+
+---
+
+#### Applied Architectural Pattern and Tactics
+
+The primary tactic implemented is **Maintain Multiple Copies of Computation** and **Increase Additional Computational Resources**, as incoming requests are distributed across multiple instances of the menu service.
+
+---
+
+### 5.2 Throttling
+
+The Throttling (rate limiting) pattern was implemented to control the flow of requests to the Menu service, protecting the system against traffic spikes and abuse (for example, denial-of-service attacks or malicious clients).
+
+### Quality Scenario:
+
+We use 2 scenarios, one for limiting requests made by a single user and another for global requests.
+
+
+| Attribute          | Description |
+|--------------------|-------------|
+| **Source**         | Clients/Users |
+| **Stimulus**       | A single IP address sends more than 25 req/second |
+| **Artifact**       | Throttler (NGINX) and Menu Service instances |
+| **Environment**    | Normal operation in a local development environment |
+| **Response**       | The throttler drops individual excess requests breaking the Per-IP limit. Dropped requests are instantly rejected at the proxy layer with an HTTP 503 Service Unavailable response, protecting the backend |
+| **Response Measure** | - Total traffic forwarded to menu service instances per user is 25 requests per second (15 base rate + 10 burst queue)  <br> - 0% of excess traffic reaches the backend instances  <br> - Throttler response time for rejected requests < 10 ms (dropped immediately) |
+
+| Attribute          | Description |
+|--------------------|-------------|
+| **Source**         | Clients/Users |
+| **Stimulus**       | Concurrent users generate more than 1100 req/second |
+| **Artifact**       | Throttler (NGINX) and Menu Service instances |
+| **Environment**    | Normal operation in a local development environment |
+| **Response**       | The throttler drops global excess requests breaking the Global limit. Dropped requests are instantly rejected at the proxy layer with an HTTP 503 Service Unavailable response, protecting the backend |
+| **Response Measure** | - Total traffic forwarded to menu service instances is 1100 requests per second (1000 base rate + 100 burst queue)  <br> - 0% of excess traffic reaches the backend instances  <br> - Throttler response time for rejected requests < 10 ms (dropped immediately) |
+
+---
+
+#### Applied Architectural Pattern and Tactics
+
+The primary tactic implemented is **Limit Request Rate** and **Protect System Against Overload**, as the rate of incoming requests is restricted both per-client and globally, dropping the excess immediately at the proxy layer (NGINX) to prevent the menu service from becoming saturated.
+
+
+### Testing Analysis and Results
+
+A test is performed in JMeter once the Load Balancer has been implemented.
+
+The load test did not yield a performance curve with a clearly defined inflection point (knee), due to the limited number of measurement points.
+
+However, it is estimated that the knee occurs below 2000 concurrent users. Up to that threshold, the system maintained stable response times and an acceptable throughput.
+
+At that point, response times spiked and the error rate reached 6%, demonstrating resource saturation (request queues, increased latency, and general degradation).
+
+With this information, it is decided to implement the Throttler pattern, defining a global limit of 1100 req/s and a per-user (IP) limit of 25 req/s (per the group's criteria).
+
+## 8. Prototype
 
 ### Prerequisites
 
