@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Armchair,
+  CalendarClock,
   Check,
   ChefHat,
   Clock,
@@ -33,9 +34,10 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
 import { kitchenOrderService } from "@/lib/services/kitchenOrderService";
+import { reservationService } from "@/lib/services/reservationService";
 import { restaurantService } from "@/lib/services/restaurantService";
 import { tableService } from "@/lib/services/tableServices";
-import type { KitchenOrder, KitchenOrderStatus, Table as TableType } from "@/lib/types";
+import type { KitchenOrder, KitchenOrderStatus, Reservation, ReservationStatus, Table as TableType } from "@/lib/types";
 
 const DEFAULT_GRID_COLS = 16;
 const DEFAULT_GRID_ROWS = 12;
@@ -90,6 +92,9 @@ const kitchenStatusLabels: Record<KitchenOrderStatus, string> = {
 };
 
 const ACTIVE_KITCHEN_STATUSES: KitchenOrderStatus[] = ["PENDING", "IN_PREPARATION", "READY"];
+const ACTIVE_RESERVATION_STATUSES: ReservationStatus[] = ["Pendiente", "Confirmada", "CheckedIn"];
+const RESERVATION_DURATION_MINUTES = 45;
+const CURRENT_RESERVATION_WINDOW_MINUTES = 60;
 
 function cellKey(x: number, y: number) {
   return `${x}:${y}`;
@@ -241,6 +246,23 @@ function shortTime(isoDate: string) {
   return new Date(isoDate).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
 }
 
+function reservationDateTime(reservation: Reservation) {
+  return new Date(`${reservation.reservationDate}T${reservation.reservationTime}`);
+}
+
+function isCurrentReservation(reservation: Reservation, now: Date) {
+  const start = reservationDateTime(reservation);
+  const end = new Date(start.getTime() + RESERVATION_DURATION_MINUTES * 60_000);
+  const currentWindowEnd = new Date(now.getTime() + CURRENT_RESERVATION_WINDOW_MINUTES * 60_000);
+  return end > now && start <= currentWindowEnd;
+}
+
+function isFutureReservation(reservation: Reservation, now: Date) {
+  const start = reservationDateTime(reservation);
+  const currentWindowEnd = new Date(now.getTime() + CURRENT_RESERVATION_WINDOW_MINUTES * 60_000);
+  return start > currentWindowEnd;
+}
+
 function buildPresetCells(seats: number, originX = 0, originY = 0): LayoutCell[] {
   const tableBlocks = seats > 1 && seats % 2 === 1 ? seats - 1 : seats;
   const width = tableBlocks === 1 ? 1 : tableBlocks === 4 ? 2 : Math.ceil(tableBlocks / 2);
@@ -291,6 +313,8 @@ export const TablesPage = () => {
 
   const [tables, setTables] = useState<TableType[]>([]);
   const [kitchenOrders, setKitchenOrders] = useState<KitchenOrder[]>([]);
+  const [reservations, setReservations] = useState<Reservation[]>([]);
+  const [now, setNow] = useState(() => new Date());
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [kitchenError, setKitchenError] = useState<string | null>(null);
@@ -323,6 +347,27 @@ export const TablesPage = () => {
     return map;
   }, [kitchenOrders]);
 
+  const reservationsByTable = useMemo(() => {
+    const map = new Map<number, { current: Reservation[]; future: Reservation[] }>();
+
+    for (const reservation of reservations) {
+      if (!reservation.tableId || !ACTIVE_RESERVATION_STATUSES.includes(reservation.status)) continue;
+      const entry = map.get(reservation.tableId) ?? { current: [], future: [] };
+      if (isCurrentReservation(reservation, now)) {
+        entry.current.push(reservation);
+      } else if (isFutureReservation(reservation, now)) {
+        entry.future.push(reservation);
+      }
+      map.set(reservation.tableId, entry);
+    }
+
+    return map;
+  }, [now, reservations]);
+
+  const getTableReservations = (table: TableType) => {
+    return reservationsByTable.get(table.id) ?? { current: [], future: [] };
+  };
+
   const getActiveOrders = (table: TableType) => {
     const byId = activeOrdersByTable.get(tableOrderKey(table));
     if (byId) return byId;
@@ -354,7 +399,7 @@ export const TablesPage = () => {
     setIsRefreshing(true);
     layoutLoadedRef.current = false;
     try {
-      const [tableData, , orderResult] = await Promise.all([
+      const [tableData, , orderResult, reservationResult] = await Promise.all([
         tableService.getByRestaurantId(restaurantId),
         restaurantService
           .getById(restaurantId)
@@ -371,9 +416,14 @@ export const TablesPage = () => {
           .getKitchenOrders(restaurantId)
           .then((orders) => ({ orders, error: null }))
           .catch((error) => ({ orders: [] as KitchenOrder[], error })),
+        reservationService
+          .getByRestaurant(restaurantId)
+          .then((reservationData) => ({ reservations: reservationData, error: null }))
+          .catch((error) => ({ reservations: [] as Reservation[], error })),
       ]);
       setTables(tableData);
       setKitchenOrders(orderResult.orders);
+      setReservations(reservationResult.reservations);
       setKitchenError(orderResult.error ? "No se pudieron cargar las órdenes activas de cocina." : null);
     } catch (error) {
       console.error("Error al cargar mesas:", error);
@@ -389,6 +439,11 @@ export const TablesPage = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [restaurantId]);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => setNow(new Date()), 60_000);
+    return () => window.clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     if (restaurantId === null || !layoutLoadedRef.current) return;
@@ -658,6 +713,15 @@ export const TablesPage = () => {
     setTool("select");
   };
 
+  const getVisualStatus = (table: TableType): TableStatus => {
+    if (getActiveOrders(table).length > 0) return "OCCUPIED";
+    const tableReservations = getTableReservations(table);
+    if (table.status === "RESERVED" && tableReservations.current.length === 0) {
+      return "AVAILABLE";
+    }
+    return table.status;
+  };
+
   const renderCell = (x: number, y: number) => {
     const key = cellKey(x, y);
     const draftCell = draft?.cells.find((cell) => cell.x === x && cell.y === y);
@@ -667,7 +731,9 @@ export const TablesPage = () => {
     const cells = table ? tableCellsById.get(table.id) ?? [] : [];
     const firstCell = cells.length > 0 && getBounds(cells).x === x && getBounds(cells).y === y;
     const activeOrders = table ? getActiveOrders(table) : [];
-    const visualStatus = table && activeOrders.length > 0 ? "OCCUPIED" : table?.status;
+    const tableReservations = table ? getTableReservations(table) : { current: [], future: [] };
+    const hasFutureReservations = tableReservations.future.length > 0;
+    const visualStatus = table ? getVisualStatus(table) : undefined;
     const type = draftCell?.type ?? occupied?.cell.type;
 
     const baseClass =
@@ -694,6 +760,8 @@ export const TablesPage = () => {
           table
             ? `Mesa ${table.tableNumber} · ${statusLabels[visualStatus ?? table.status]}${
                 activeOrders.length ? ` · ${activeOrders.length} orden(es) activas` : ""
+              }${
+                hasFutureReservations ? ` · ${tableReservations.future.length} reserva(s) más tarde` : ""
               }`
             : draftCell
               ? "Forma en borrador"
@@ -712,11 +780,18 @@ export const TablesPage = () => {
             {activeOrders.length}
           </span>
         )}
+        {firstCell && activeOrders.length === 0 && hasFutureReservations && (
+          <span className="absolute right-0.5 bottom-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-blue-600 px-1 text-[9px] text-white">
+            <CalendarClock className="h-3 w-3" />
+          </span>
+        )}
       </button>
     );
   };
 
   const selectedActiveOrders = selectedTable ? getActiveOrders(selectedTable) : [];
+  const selectedTableReservations = selectedTable ? getTableReservations(selectedTable) : { current: [], future: [] };
+  const selectedVisualStatus = selectedTable ? getVisualStatus(selectedTable) : null;
 
   if (restaurantId === null && loading) {
     return (
@@ -816,6 +891,19 @@ export const TablesPage = () => {
             </div>
           </div>
 
+          <div className="flex flex-wrap gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs text-gray-600">
+            <span className="inline-flex items-center gap-1"><Armchair className="h-3.5 w-3.5 text-emerald-600" /> Silla</span>
+            <span className="inline-flex items-center gap-1"><Square className="h-3.5 w-3.5 text-amber-600" /> Recuadro de mesa</span>
+            <span className="inline-flex items-center gap-1"><ChefHat className="h-3.5 w-3.5 text-orange-600" /> Órdenes activas</span>
+            <span className="inline-flex items-center gap-1"><CalendarClock className="h-3.5 w-3.5 text-blue-600" /> Reserva más tarde</span>
+            <span className="inline-flex items-center gap-1"><Grid3X3 className="h-3.5 w-3.5 text-blue-600" /> {gridCols} x {gridRows}</span>
+            {Object.entries(statusLabels).map(([status, label]) => (
+              <span key={status} className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 ${statusColors[status as TableStatus]}`}>
+                {label}
+              </span>
+            ))}
+          </div>
+
           <div className="overflow-auto rounded-lg border border-gray-200 bg-gray-50 p-3">
             {loading ? (
               <div className="flex items-center justify-center py-20 text-gray-500">
@@ -834,17 +922,6 @@ export const TablesPage = () => {
             )}
           </div>
 
-          <div className="flex flex-wrap gap-3 text-xs text-gray-600">
-            <span className="inline-flex items-center gap-1"><Armchair className="h-3.5 w-3.5 text-emerald-600" /> Silla</span>
-            <span className="inline-flex items-center gap-1"><Square className="h-3.5 w-3.5 text-amber-600" /> Recuadro de mesa</span>
-            <span className="inline-flex items-center gap-1"><ChefHat className="h-3.5 w-3.5 text-orange-600" /> Órdenes activas</span>
-            <span className="inline-flex items-center gap-1"><Grid3X3 className="h-3.5 w-3.5 text-blue-600" /> {gridCols} x {gridRows}</span>
-            {Object.entries(statusLabels).map(([status, label]) => (
-              <span key={status} className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 ${statusColors[status as TableStatus]}`}>
-                {label}
-              </span>
-            ))}
-          </div>
           {kitchenError && (
             <p className="text-xs text-amber-700">{kitchenError}</p>
           )}
@@ -896,7 +973,9 @@ export const TablesPage = () => {
                   <h2 className="text-lg font-bold text-gray-900">Mesa #{selectedTable.tableNumber}</h2>
                   <p className="text-sm text-gray-500">{selectedTable.seats} sillas</p>
                 </div>
-                <Badge className={statusColors[selectedTable.status]}>{statusLabels[selectedTable.status]}</Badge>
+                {selectedVisualStatus && (
+                  <Badge className={statusColors[selectedVisualStatus]}>{statusLabels[selectedVisualStatus]}</Badge>
+                )}
               </div>
 
               <div className="mt-4 space-y-2">
@@ -949,6 +1028,32 @@ export const TablesPage = () => {
                 </div>
               )}
 
+              {selectedTableReservations.future.length > 0 && (
+                <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-3">
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-blue-950">
+                      <CalendarClock className="h-4 w-4" /> Reservas más tarde
+                    </span>
+                    <Badge className="border-blue-200 bg-white text-blue-800">
+                      {selectedTableReservations.future.length}
+                    </Badge>
+                  </div>
+                  <div className="space-y-2">
+                    {selectedTableReservations.future.slice(0, 3).map((reservation) => (
+                      <div key={reservation.id} className="rounded-md bg-white/80 px-2 py-1.5 text-xs text-blue-950">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-semibold">Reserva #{reservation.id}</span>
+                          <span>{reservation.reservationTime}</span>
+                        </div>
+                        <div className="mt-1 text-blue-700">
+                          {reservation.customerName} · {reservation.partySize} persona{reservation.partySize === 1 ? "" : "s"}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="mt-4 grid grid-cols-3 gap-2">
                 <span />
                 <Button variant="outline" size="sm" onClick={() => moveSelectedBy(0, -1)}>Arriba</Button>
@@ -992,6 +1097,7 @@ export const TablesPage = () => {
               ) : (
                 tables.map((table) => {
                   const activeOrders = getActiveOrders(table);
+                  const tableReservations = getTableReservations(table);
 
                   return (
                     <button
@@ -1010,6 +1116,11 @@ export const TablesPage = () => {
                         {activeOrders.length > 0 && (
                           <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2 py-0.5 text-[11px] font-semibold text-orange-800">
                             <ChefHat className="h-3 w-3" /> {activeOrders.length}
+                          </span>
+                        )}
+                        {activeOrders.length === 0 && tableReservations.future.length > 0 && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-semibold text-blue-800">
+                            <CalendarClock className="h-3 w-3" /> {tableReservations.future.length}
                           </span>
                         )}
                         <span className="inline-flex items-center gap-1">
