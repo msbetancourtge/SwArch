@@ -338,6 +338,86 @@ However, it is estimated that the knee occurs below 2000 concurrent users. Up to
 At that point, response times spiked and the error rate reached 6%, demonstrating resource saturation (request queues, increased latency, and general degradation).
 
 With this information, it is decided to implement the Throttler pattern, defining a global limit of 1100 req/s and a per-user (IP) limit of 25 req/s (per the group's criteria).
+# Interoperability in Click & Munch
+
+## 7. Applied interoperability pattern
+
+The Click & Munch project implements interoperability mainly in the backend using the **Mediator** pattern combined with a **message broker** (RabbitMQ).
+
+### 7.1 Where it applies
+
+- `NotificationService` is the component that materializes interoperability.
+- `OrderService` and `ReservationService` publish domain events without knowing the external delivery channels.
+- `RabbitMQ` acts as the central mediator between event producers and notification consumers.
+- `TelegramWorker` is the only component that knows the Telegram API.
+- `AuthService` is queried by `NotificationService` to obtain the user's `telegramChatId`.
+
+### 7.2 How decoupling is achieved
+
+- Core services (`OrderService`, `ReservationService`) publish generic events such as `order.created`, `order.status.changed`, `reservation.confirmed`, `reservation.cancelled`.
+- These events are sent to the `clickmunch.events` exchange of type **topic**.
+- `NotificationService` consumes the events and creates internal notifications (persistence + SSE).
+- If the user has Telegram linked, `NotificationService` publishes an additional event with routing key `notification.send` to the `notification.telegram.queue`.
+- `TelegramWorker` consumes that queue and performs the `HTTP POST` to `https://api.telegram.org/bot{token}/sendMessage`.
+
+### 7.3 Pattern benefits in the project
+
+- **Decoupled interoperability**: producers do not need knowledge of Telegram or other channels.
+- **Extensibility**: adding a new notification channel (email, WhatsApp, SMS) only requires adding a new worker or consumer, without changing core services.
+- **Resilience**: external channel failures do not directly affect the main order and reservation flows.
+- **Separation of concerns**: `NotificationService` handles notification logic while `TelegramWorker` handles the external adapter.
+
+### 7.4 Mediator pattern description
+
+The system uses the **Mediator** pattern to centralize communication between domain event producers and delivery channels. In this case, `RabbitMQ` acts as the mediator:
+
+- Producers (`OrderService`, `ReservationService`) send generic domain events to the broker.
+- The broker routes those events to one or more consumers without producers knowing the consumers.
+- `NotificationService` receives events and decides whether to create internal notifications, send SSE, or publish a Telegram send request.
+- `TelegramWorker` is the final consumer that knows the external Telegram API.
+
+This keeps the core services focused on business logic while the mediator handles distribution and integration with external channels.
+
+### 7.5 Design tactics applied
+
+The following design tactics were applied to achieve interoperability quality:
+
+- **Message-based decoupling**: events are transported through RabbitMQ rather than direct service-to-service calls.
+- **Single responsibility**: notification creation, event routing, and external delivery are separated across different components.
+- **Explicit channel isolation**: the Telegram integration is isolated in `TelegramWorker`, so external API changes stay localized.
+- **Asynchronous delivery**: using queues prevents Telegram delivery latency or failure from blocking the core workflow.
+- **Optional integration**: Telegram is optional; users without a linked chat ID still receive notifications through SSE.
+
+### 7.6 Key design elements
+
+- `clickmunch.events` → RabbitMQ topic exchange.
+- `notification.order.queue`, `notification.reservation.queue`, `notification.telegram.queue` → durable queues.
+- `NotificationEventConsumer` → queries `AuthService` to obtain the `telegramChatId` and creates the notification.
+- `TelegramNotificationPublisher` → publishes abstract messages without Telegram logic.
+- `TelegramWorker` → final adapter that knows the external Telegram API.
+
+---
+
+## 7.7 Interoperability quality scenario
+
+| Attribute | Description |
+|----------|-------------|
+| **Source** | Domain events emitted by internal services (`OrderService`, `ReservationService`) and users with Telegram linked. |
+| **Stimulus** | An order or reservation event is generated and the user has a valid `telegramChatId`. |
+| **Artifact** | `NotificationService` interoperability pipeline. |
+| **Environment** | Normal operation in the backend environment with RabbitMQ available and `NotificationService` deployed. |
+| **Response** | The event is consumed and processed: the internal notification is stored, delivered via SSE, and the Telegram send request is enqueued. |
+| **Response Measure** | - Event processed in < 500 ms.<br>- Published to `notification.telegram.queue` in < 200 ms.<br>- Producer service does not need changes to support the Telegram channel.<br>- Telegram errors do not block persistence or SSE delivery. |
+
+### 7.8 Scenario justification
+
+This scenario shows that the system's interoperability allows the business core to connect to an external channel (Telegram) without the order and reservation services knowing the external implementation. The quality value lies in the ability to integrate new channels with minimal system changes and maintain consistent user behavior even if the external channel fails.
+
+### 7.9 Quality observations
+
+- The system can be extended to other messaging channels with a new worker listening to a different queue.
+- Interoperability depends on a centralized mediator (`RabbitMQ`), which makes this component critical for notification flow availability.
+- Maintaining the event contract and the producer/consumer separation is key to preserving interoperability quality.
 
 ## 8. Prototype
 
