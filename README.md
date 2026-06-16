@@ -49,7 +49,7 @@ The architecture is built around independent microservices—authentication, res
 
 #### C&C View
 
-![Component-and-Connector (C&C) View](./images/C&C%20Diagram%20ClickAndMunch.jpg)
+![Component-and-Connector (C&C) View](./images/C&C%20Diagram%20ClickAndMunch-Final.png)
 
 #### Description of Architectural Elements and Relations
 
@@ -208,7 +208,65 @@ The system is decomposed into six functional domains grouped by business capabil
 
 ---
 
-## 4. Prototype
+## 4. Security
+
+---
+
+### 4.1 Web Application Firewall (WAF) — Injection Attack Prevention
+
+The WAF is implemented as a `GlobalFilter` inside the API Gateway with the highest filter priority. It inspects request paths, query parameters, and key headers against regex signature lists for SQLi, XSS, and Path Traversal, decoding URL-encoded payloads up to two passes to defeat percent-encoding evasion. Malicious traffic is rejected with HTTP 403 before JWT validation or downstream routing ever runs.
+
+### Quality Scenario:
+
+| Component | Answer |
+| :--- | :--- |
+| **Source** | Threat actor — External (Unknown) |
+| **Stimulus** | SQL Injection / XSS / Path Traversal attempt on any endpoint |
+| **Artifact** | API Gateway (WafFilter) |
+| **Environment** | Normal Operation — Production |
+| **Response** | Decode payload, match against attack signatures, and reject request with HTTP 403 |
+| **Response Measure** | Recognize attack pattern < 200 ms; block request before it reaches any microservice |
+
+---
+
+#### Applied Architectural Pattern
+
+**WAF (Web Application Firewall)** — A global filter screens every request at the edge using signature-based pattern matching. The WAF acts as the first line of defense, blocking known attack vectors (SQLi, XSS, Path Traversal) before any business logic is involved.
+
+#### Applied Architectural Tactics
+
+**Verify Message Integrity** — The WAF is the first stage in the API Gateway's filter pipeline. Requests flow through WAF → JWT validation → path rewriting → routing to the target microservice, each stage being independent and composable.
+
+---
+
+### 4.2 Secure Channel — TLS Termination at the API Gateway
+
+TLS is terminated at the API Gateway, the only publicly reachable container. It presents a valid X.509 certificate to connecting clients; all internal `appnet` traffic stays on the private Docker bridge network. This keeps certificate management in one place and ensures no plaintext data is exposed on the external network.
+
+### Quality Scenario:
+
+| Component | Answer |
+| :--- | :--- |
+| **Source** | Threat actor — External (Network Eavesdropper / MITM) |
+| **Stimulus** | Interception attempt on plaintext HTTP traffic between client and server |
+| **Artifact** | API Gateway (TLS termination endpoint) |
+| **Environment** | Normal Operation — Production |
+| **Response** | Enforce TLS 1.2 / 1.3; reject plaintext connections; encrypt all data in transit |
+| **Response Measure** | TLS handshake complete < 100 ms; zero plaintext bytes exposed to the external network |
+
+---
+
+#### Applied Architectural Pattern
+
+**Secure Channel** — TLS 1.2 / 1.3 encrypts all traffic between external clients and the API Gateway, preventing eavesdropping and man-in-the-middle attacks. Modern cipher suites are enforced and deprecated protocols (SSLv3, TLS 1.0/1.1) are disabled.
+
+#### Applied Architectural Tactics
+
+**Encrypt Data** — Because only the API Gateway is published externally, TLS is applied once at the boundary. All downstream microservices communicate over the private `appnet` network without needing their own certificates.
+
+---
+
+## 5. Prototype
 
 ### Prerequisites
 
