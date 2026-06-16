@@ -152,7 +152,7 @@ All backend components run as Docker containers on a single host within the `app
 
 #### Layered View
 
-Every microservice (Java and Python) follows the same four-layer vertical slice:
+The system is organized as a five-layer horizontal stack, from client applications down to the data stores:
 
 ![Layered View](./images/Layered_View.png)
 
@@ -160,10 +160,11 @@ Every microservice (Java and Python) follows the same four-layer vertical slice:
 
 | Layer | Element | Responsibility |
 |-------|---------|----------------|
-| **Presentation** | Controllers / routers | Accept HTTP requests, validate input, map to DTOs, return structured responses. Never contain business logic. |
-| **Business Logic** | Service classes / functions | Enforce business rules, drive state machines, orchestrate HTTP calls to other services. |
-| **Data Access** | Repository interfaces | Encapsulate all persistence queries. CheckoutService (Python) has no data access layer — it is a pure orchestrator. |
-| **Infrastructure** | Databases, RabbitMQ, external clients | Backing stores and messaging transport. Never called directly from controllers. |
+| **Layer 0 — Presentation** | Mobile App, Web Dashboard | Client applications that consume the platform; render the UI and issue requests. No business logic. |
+| **Layer 1 — Edge (Secure Channel)** | API Gateway | Single public entry point; terminates TLS (HTTPS/WSS), routes traffic, and enforces JWT and CORS. |
+| **Layer 2 — Business Services** | Auth, Restaurant, Geo, Menu, Order, Reservation, Checkout, Rating, Notification | Independently deployable microservices that hold all business logic and own their data. |
+| **Layer 3 — Asynchronous Messaging** | RabbitMQ (`clickmunch.events` topic) | Event bus that decouples producers (Order, Reservation) from consumers (Notification). |
+| **Layer 4 — Data Stores** | PostgreSQL ×6, PostGIS, MongoDB | Backing databases; one per service, never accessed across service boundaries. |
 
 #### Description of Architectural Patterns
 
@@ -180,7 +181,7 @@ Every microservice (Java and Python) follows the same four-layer vertical slice:
 
 #### Decomposition View
 
-The system is decomposed into five functional domains grouped by business capability:
+The system is decomposed into six functional domains grouped by business capability, plus a shared infrastructure layer:
 
 ![Decomposition View ](./images/Decomposition_View.png)
 
@@ -188,9 +189,10 @@ The system is decomposed into five functional domains grouped by business capabi
 
 | Domain | Services | Responsibility Boundary |
 |--------|----------|------------------------|
+| **Presentation** | Web Dashboard, Mobile App | Client applications consumed by end users; contain no business logic. |
 | **Ingress** | API Gateway | All client-facing concerns: routing and security. No business logic. |
 | **Identity & Access** | AuthService | User identity and JWT issuance. Consumed by the gateway and RestaurantService. |
-| **Venue Management** | RestaurantService, GeoService, MenuService | Venue profile, location, and menu. GeoService is internal-only. |
+| **Venue Management** | RestaurantService, GeoService, MenuService (×3 behind nginx-menu LB) | Venue profile, location, and menu. GeoService is internal-only (never reached directly by clients). |
 | **Ordering** | CheckoutService ★, OrderService, ReservationService | End-to-end purchase flow. CheckoutService (Python) is the saga entry point. |
 | **Customer Engagement** | NotificationService, RatingService | Realtime alerts and post-experience reviews. |
 | **Infrastructure** | RabbitMQ | Shared event bus; decouples producers from consumers. |
@@ -199,6 +201,7 @@ The system is decomposed into five functional domains grouped by business capabi
 - Cross-domain communication uses only REST (sync) or RabbitMQ (async).
 - Intra-domain REST calls are allowed (e.g., RestaurantService → GeoService); cross-database access is forbidden.
 - The Ingress domain contains no business logic; it is a traffic director only.
+- The diagram's infrastructure band also visually groups the per-service databases (PostgreSQL ×6, PostGIS, MongoDB — covered as Data Stores in §3.3). These are owned one-per-service and are *not* a shared domain; only RabbitMQ is shared infrastructure.
 
 ---
 
