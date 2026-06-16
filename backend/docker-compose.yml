@@ -402,10 +402,14 @@ services:
       SPRING_RABBITMQ_PORT: 5672
       SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER}
       SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      AUTH_SERVICE_URL: http://authservice:8081
     depends_on:
       notification-db:
         condition: service_healthy
       rabbitmq:
+        condition: service_healthy
+      authservice:
         condition: service_healthy
     networks:
       - appnet

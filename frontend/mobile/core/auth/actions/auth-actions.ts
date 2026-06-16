@@ -161,6 +161,21 @@ export const updateUserProfile = async (
     }
 };
 
+export const linkTelegram = async (
+    userId: number,
+    telegramChatId: string | null
+): Promise<{ ok: boolean; message: string }> => {
+    try {
+        await productsApi.patch(`/auth/users/${userId}/telegram`, { telegramChatId });
+        return { ok: true, message: telegramChatId ? 'Telegram vinculado' : 'Telegram desvinculado' };
+    } catch (error: any) {
+        return {
+            ok: false,
+            message: error?.response?.data?.message ?? 'No se pudo vincular Telegram',
+        };
+    }
+};
+
 export const changePassword = async (
     userId: number,
     currentPassword: string,

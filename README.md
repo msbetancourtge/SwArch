@@ -64,7 +64,7 @@ The architecture is built around independent microservices—authentication, res
 | **MenuService** | Spring Boot 4, MongoDB | Menu category and item management per restaurant. |
 | **OrderService** | Spring Boot 4, JDBC, PostgreSQL, STOMP, RabbitMQ | Order lifecycle state machine. One DB row per ordered unit for per-unit notes. Publishes events to RabbitMQ; pushes realtime events over STOMP. |
 | **ReservationService** | Spring Boot 4, JDBC, PostgreSQL, RabbitMQ | Table reservations, capacity management, order linking. Publishes events to RabbitMQ. |
-| **NotificationService** | Spring Boot 4, JDBC, PostgreSQL, RabbitMQ, SSE | Consumes events from RabbitMQ, persists notifications, streams to clients via SSE. |
+| **NotificationService** | Spring Boot 4, JDBC, PostgreSQL, RabbitMQ, SSE, Telegram Bot API | Consumes events from RabbitMQ, persists notifications, streams to clients via SSE, and forwards alerts to Telegram via `TelegramWorker`. |
 | **RatingService** | Spring Boot 4, JDBC, PostgreSQL | Restaurant and waiter ratings with aggregate score summaries. |
 | **CheckoutService** | **Python 3.12 / FastAPI / httpx** | Saga orchestrator: validates reservation → creates order → links reservation. No own database. |
 | **RabbitMQ** | RabbitMQ 3 (AMQP) | Async event bus decoupling OrderService/ReservationService from NotificationService. |
@@ -93,6 +93,8 @@ The architecture is built around independent microservices—authentication, res
 | OrderService | RabbitMQ | AMQP | Publish `ORDER_CREATED`, `ORDER_STATUS_CHANGED` |
 | ReservationService | RabbitMQ | AMQP | Publish `RESERVATION_CREATED` |
 | RabbitMQ | NotificationService | AMQP | Event delivery |
+| NotificationService → AuthService | HTTP | REST | `NotificationEventConsumer` fetches `telegramChatId` per user before dispatching Telegram events |
+| NotificationService (TelegramWorker) | Telegram Bot API | HTTPS/REST | Delivers alerts via `POST /bot{token}/sendMessage` — only component aware of Telegram |
 | Each service | Own DB | JDBC / MongoDB | Each service owns exactly one database |
 
 #### Description of Architectural Styles
@@ -114,6 +116,7 @@ The architecture is built around independent microservices—authentication, res
 | **Pipe-and-Filter** | Gateway pipeline | Requests pass through authentication, path rewriting, and forwarding stages before reaching downstream services. |
 | **State Machine** | OrderService | Order status transitions are constrained to valid lifecycle changes only. |
 | **Repository** | Data layer | Spring Data repositories encapsulate persistence concerns behind repository interfaces. |
+| **Mediator** | NotificationService + RabbitMQ | RabbitMQ acts as the central mediator between the core system and external channels. `TelegramWorker` is the only component aware of the Telegram API; all other services publish generic events, achieving full interoperability decoupling. |
 
 ---
 

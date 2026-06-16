@@ -6,7 +6,7 @@ import { ThemedText } from '@/presentation/theme/components/themed-text';
 import { ThemedView } from '@/presentation/theme/components/themed-view';
 import { useThemeColor } from '@/presentation/theme/hooks/use-theme-color';
 import { useAuthStore } from '@/presentation/auth/store/useAuthStore';
-import { changePassword, updateUserProfile } from '@/core/auth/actions/auth-actions';
+import { changePassword, linkTelegram, updateUserProfile } from '@/core/auth/actions/auth-actions';
 
 function MenuItem({
   icon,
@@ -37,14 +37,17 @@ export default function ProfileScreen() {
   const [governmentId, setGovernmentId] = useState('');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [telegramChatId, setTelegramChatId] = useState('');
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
+  const [savingTelegram, setSavingTelegram] = useState(false);
 
   useEffect(() => {
     setPhone(user?.phone ?? '');
     setAddress(user?.address ?? '');
     setBio(user?.bio ?? '');
     setGovernmentId(user?.governmentId ?? '');
+    setTelegramChatId(user?.telegramChatId ?? '');
   }, [user?.id]);
 
   const handleSaveProfile = async () => {
@@ -82,6 +85,38 @@ export default function ProfileScreen() {
       setCurrentPassword('');
       setNewPassword('');
     }
+  };
+
+  const handleLinkTelegram = async () => {
+    if (!user?.id) return;
+    setSavingTelegram(true);
+    const result = await linkTelegram(user.id, telegramChatId.trim() || null);
+    setSavingTelegram(false);
+    if (result.ok) {
+      setUser({ ...user, telegramChatId: telegramChatId.trim() || null });
+    }
+    Alert.alert('Telegram', result.message);
+  };
+
+  const handleUnlinkTelegram = () => {
+    Alert.alert('Desvincular Telegram', '¿Dejarás de recibir notificaciones en Telegram?', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Desvincular',
+        style: 'destructive',
+        onPress: async () => {
+          if (!user?.id) return;
+          setSavingTelegram(true);
+          const result = await linkTelegram(user.id, null);
+          setSavingTelegram(false);
+          if (result.ok) {
+            setTelegramChatId('');
+            setUser({ ...user, telegramChatId: null });
+          }
+          Alert.alert('Telegram', result.message);
+        },
+      },
+    ]);
   };
 
   const handleLogout = () => {
@@ -147,6 +182,59 @@ export default function ProfileScreen() {
         >
           <ThemedText style={styles.primaryButtonText}>{savingPassword ? 'Actualizando...' : 'Cambiar contraseña'}</ThemedText>
         </TouchableOpacity>
+      </View>
+
+      {/* Telegram */}
+      <View style={styles.formSection}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+          <Ionicons name="paper-plane-outline" size={18} color="#229ED9" style={{ marginRight: 8 }} />
+          <ThemedText type="defaultSemiBold" style={styles.sectionTitle}>Notificaciones Telegram</ThemedText>
+        </View>
+        <ThemedText style={{ color: '#999', fontSize: 13, marginBottom: 12 }}>
+          Vincula tu cuenta para recibir notificaciones de pedidos y reservaciones directamente en Telegram.
+        </ThemedText>
+        {user?.telegramChatId ? (
+          <>
+            <View style={styles.telegramLinked}>
+              <Ionicons name="checkmark-circle" size={18} color="#27ae60" />
+              <ThemedText style={{ color: '#27ae60', marginLeft: 6, fontSize: 14 }}>
+                Cuenta vinculada (ID: {user.telegramChatId})
+              </ThemedText>
+            </View>
+            <TouchableOpacity
+              style={[styles.primaryButton, { backgroundColor: '#e74c3c', marginTop: 10 }]}
+              onPress={handleUnlinkTelegram}
+              disabled={savingTelegram}
+            >
+              <ThemedText style={styles.primaryButtonText}>
+                {savingTelegram ? 'Desvinculando...' : 'Desvincular Telegram'}
+              </ThemedText>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <>
+            <ThemedText style={{ color: '#666', fontSize: 13, marginBottom: 8 }}>
+              1. Abre Telegram y escríbele a tu bot{'\n'}
+              2. Obtén tu Chat ID en: api.telegram.org/bot&lt;token&gt;/getUpdates{'\n'}
+              3. Pégalo aquí y guarda
+            </ThemedText>
+            <ProfileInput
+              placeholder="Tu Chat ID de Telegram (ej: 7184207241)"
+              value={telegramChatId}
+              onChangeText={setTelegramChatId}
+              keyboardType="numeric"
+            />
+            <TouchableOpacity
+              style={[styles.primaryButton, { backgroundColor: '#229ED9' }]}
+              onPress={handleLinkTelegram}
+              disabled={savingTelegram || !telegramChatId.trim()}
+            >
+              <ThemedText style={styles.primaryButtonText}>
+                {savingTelegram ? 'Vinculando...' : 'Vincular Telegram'}
+              </ThemedText>
+            </TouchableOpacity>
+          </>
+        )}
       </View>
 
       {/* Menu */}
@@ -280,6 +368,13 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 2,
+  },
+  telegramLinked: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f0faf4',
+    borderRadius: 8,
+    padding: 10,
   },
   menuItem: {
     flexDirection: 'row',
