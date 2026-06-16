@@ -9,6 +9,7 @@ import ReadyNotificationBanner from '@/presentation/waiter/components/ReadyNotif
 import { useOrdersRealtime, ORDERS_QUERY_KEY } from '@/presentation/waiter/hooks/useOrdersRealtime';
 import { getWaiterRestaurantId } from '@/presentation/waiter/config';
 import { updateOrderStatus } from '@/core/orders/actions/update-order-status.action';
+import { useThemeColor } from '@/presentation/theme/hooks/use-theme-color';
 
 const ACTIVE_STATUSES = new Set(['PENDING', 'IN_PREPARATION']);
 
@@ -16,6 +17,7 @@ const ActiveOrdersScreen = () => {
     const restaurantId = getWaiterRestaurantId();
     const queryClient = useQueryClient();
     const [busyId, setBusyId] = useState<number | null>(null);
+    const primaryColor = useThemeColor({}, 'primary');
 
     const {
         orders,
@@ -73,7 +75,7 @@ const ActiveOrdersScreen = () => {
             {/* ── Header with stats ── */}
             <View style={styles.header}>
                 <View style={styles.headerLeft}>
-                    <Ionicons name='time-outline' size={20} color='#590004' />
+                    <Ionicons name='time-outline' size={20} color={primaryColor} />
                     <ThemedText style={styles.headerTitle}>
                         {activeOrders.length}{' '}
                         {activeOrders.length === 1 ? 'orden activa' : 'órdenes activas'}

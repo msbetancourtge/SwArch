@@ -20,11 +20,11 @@ import { createOrder } from '@/core/orders/actions/create-order.action';
 import { useWaiterStore } from '@/presentation/waiter/store/useWaiterStore';
 import { getWaiterRestaurantId } from '@/presentation/waiter/config';
 import { ORDERS_QUERY_KEY } from '@/presentation/waiter/hooks/useOrdersRealtime';
-
-const PRIMARY = '#590004';
+import { useThemeColor } from '@/presentation/theme/hooks/use-theme-color';
 
 const NewOrderScreen = () => {
     const restaurantId = getWaiterRestaurantId();
+    const primaryColor = useThemeColor({}, 'primary');
     const queryClient = useQueryClient();
     const {
         tableNumber,
@@ -102,7 +102,7 @@ const NewOrderScreen = () => {
             <ScrollView contentContainerStyle={styles.content}>
                 {/* ── Table Number ── */}
                 <View style={styles.sectionHeader}>
-                    <Ionicons name='restaurant-outline' size={18} color={PRIMARY} />
+                    <Ionicons name='restaurant-outline' size={18} color={primaryColor} />
                     <ThemedText style={styles.sectionTitle}>Mesa</ThemedText>
                 </View>
                 <ThemedTextInput
@@ -115,10 +115,10 @@ const NewOrderScreen = () => {
 
                 {/* ── Menu ── */}
                 <View style={[styles.sectionHeader, { marginTop: 20 }]}>
-                    <Ionicons name='book-outline' size={18} color={PRIMARY} />
+                    <Ionicons name='book-outline' size={18} color={primaryColor} />
                     <ThemedText style={styles.sectionTitle}>Menú</ThemedText>
                     {menuQuery.data && (
-                        <View style={styles.countBadge}>
+                        <View style={[styles.countBadge, { backgroundColor: primaryColor }]}>
                             <ThemedText style={styles.countBadgeText}>
                                 {menuQuery.data.length}
                             </ThemedText>
@@ -159,7 +159,7 @@ const NewOrderScreen = () => {
                                         </ThemedText>
                                     ) : null}
                                     {item.price != null && (
-                                        <ThemedText style={styles.menuPrice}>
+                                        <ThemedText style={[styles.menuPrice, { color: primaryColor }]}>
                                             ${item.price.toLocaleString('es-CO', { minimumFractionDigits: 0 })}
                                         </ThemedText>
                                     )}
@@ -174,11 +174,11 @@ const NewOrderScreen = () => {
 
                 {/* ── Draft Items ── */}
                 <View style={[styles.sectionHeader, { marginTop: 20 }]}>
-                    <Ionicons name='cart-outline' size={18} color={PRIMARY} />
+                    <Ionicons name='cart-outline' size={18} color={primaryColor} />
                     <ThemedText style={styles.sectionTitle}>
                         Pedido
                     </ThemedText>
-                    <View style={[styles.countBadge, { backgroundColor: items.length > 0 ? PRIMARY : '#9CA3AF' }]}>
+                    <View style={[styles.countBadge, { backgroundColor: items.length > 0 ? primaryColor : '#9CA3AF' }]}>
                         <ThemedText style={styles.countBadgeText}>
                             {items.length}
                         </ThemedText>
@@ -228,7 +228,7 @@ const NewOrderScreen = () => {
 
                 {/* ── Order Notes ── */}
                 <View style={[styles.sectionHeader, { marginTop: 20 }]}>
-                    <Ionicons name='chatbubble-outline' size={18} color={PRIMARY} />
+                    <Ionicons name='chatbubble-outline' size={18} color={primaryColor} />
                     <ThemedText style={styles.sectionTitle}>
                         Nota de la orden
                     </ThemedText>
@@ -308,7 +308,6 @@ const styles = StyleSheet.create({
         color: '#111827',
     },
     countBadge: {
-        backgroundColor: PRIMARY,
         borderRadius: 999,
         minWidth: 22,
         height: 22,
@@ -364,7 +363,6 @@ const styles = StyleSheet.create({
     menuPrice: {
         fontSize: 14,
         fontWeight: '700',
-        color: PRIMARY,
         marginTop: 3,
     },
     addBtn: {
