@@ -126,7 +126,7 @@ The architecture is built around independent microservices—authentication, res
 
 All backend components run as Docker containers on a single host within the `appnet` bridge network.
 
-![Deployment View](./images/Deployment_View.png)
+<img src = "./images/Deployment_View.png" width = "600">
 
 #### Description of Architectural Elements and Relations
 
