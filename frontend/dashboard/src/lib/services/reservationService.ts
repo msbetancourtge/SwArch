@@ -125,6 +125,17 @@ export const reservationService = {
     return normalizeReservation(JSON.parse(text));
   },
 
+  async linkOrder(reservationId: number, orderId: number): Promise<Reservation> {
+    const response = await fetch(`${API_GATEWAY_BASE}/reservation/${reservationId}/link-order`, {
+      method: "PUT",
+      headers: authHeaders(),
+      body: JSON.stringify({ orderId }),
+    });
+    const text = await response.text();
+    if (!response.ok) throw new Error(text || "Error linking order to reservation");
+    return normalizeReservation(JSON.parse(text));
+  },
+
   async updateStatus(reservationId: number, status: ReservationStatus): Promise<Reservation> {
     const response = await fetch(`${API_GATEWAY_BASE}/reservation/${reservationId}/status`, {
       method: "PUT",
