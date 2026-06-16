@@ -12,6 +12,7 @@ import { restaurantService } from "@/lib/services/restaurantService";
 import { orderService } from "@/lib/services/orderService";
 import { getTokenPayload } from "@/lib/auth";
 import { reservationService, type SuggestedTimeSlot } from "@/lib/services/reservationService";
+import { tableService } from "@/lib/services/tableServices";
 
 interface RestaurantPreviewDialogProps {
   restaurant: Restaurant | null;
@@ -31,6 +32,11 @@ const today = () => {
   return `${year}-${month}-${day}`;
 };
 const activeReservationStatuses = ["Pendiente", "Confirmada", "CheckedIn"];
+
+const isOrderableReservation = (reservation: Reservation, restaurantId: string) =>
+  reservation.restaurantId === Number(restaurantId) &&
+  activeReservationStatuses.includes(reservation.status) &&
+  !reservation.orderId;
 
 export const RestaurantPreviewDialog = ({
   restaurant,
@@ -113,10 +119,13 @@ export const RestaurantPreviewDialog = ({
     reservationService
       .getByCustomer(payload.userId)
       .then((reservations) => {
-        const currentReservation = reservations.find((reservation) =>
+        const activeReservations = reservations.filter((reservation) =>
           reservation.restaurantId === Number(restaurant.id) &&
           activeReservationStatuses.includes(reservation.status)
         );
+        const currentReservation =
+          activeReservations.find((reservation) => !reservation.orderId) ??
+          activeReservations[0];
         setActiveReservation(currentReservation ?? null);
         setHasActiveReservation(Boolean(currentReservation));
       })
@@ -127,8 +136,28 @@ export const RestaurantPreviewDialog = ({
       .finally(() => setCheckingReservation(false));
   }, [restaurant?.id, open]);
 
-  const addItem = (id: string) =>
+  const cartItems = menuItems.filter((item) => (cart[item.id] ?? 0) > 0);
+  const cartTotal = cartItems.reduce(
+    (sum, item) => sum + (item.priceNumber ?? 0) * (cart[item.id] ?? 0),
+    0,
+  );
+  const totalQty = Object.values(cart).reduce((a, b) => a + b, 0);
+  const canOrder = Boolean(restaurant && activeReservation && isOrderableReservation(activeReservation, restaurant.id));
+  const orderDisabledMessage = checkingReservation
+    ? "Estamos validando tu reserva antes de habilitar pedidos."
+    : activeReservation?.orderId
+      ? `La reserva #${activeReservation.id} ya tiene el pedido #${activeReservation.orderId} asociado.`
+      : "Para ordenar necesitas una reserva activa en este restaurante.";
+
+  const addItem = (id: string) => {
+    if (!canOrder) {
+      setOrderState("error");
+      setOrderError(orderDisabledMessage);
+      return;
+    }
+    setOrderError(null);
     setCart((c) => ({ ...c, [id]: (c[id] ?? 0) + 1 }));
+  };
 
   const removeItem = (id: string) =>
     setCart((c) => {
@@ -140,13 +169,6 @@ export const RestaurantPreviewDialog = ({
       return { ...c, [id]: qty };
     });
 
-  const cartItems = menuItems.filter((item) => (cart[item.id] ?? 0) > 0);
-  const cartTotal = cartItems.reduce(
-    (sum, item) => sum + (item.priceNumber ?? 0) * (cart[item.id] ?? 0),
-    0,
-  );
-  const totalQty = Object.values(cart).reduce((a, b) => a + b, 0);
-
   const handlePlaceOrder = async () => {
     if (!restaurant || cartItems.length === 0) return;
     const payload = getTokenPayload();
@@ -155,15 +177,29 @@ export const RestaurantPreviewDialog = ({
       setOrderError("Necesitas iniciar sesión para realizar un pedido.");
       return;
     }
+    if (!activeReservation || !canOrder) {
+      setOrderState("error");
+      setOrderError(orderDisabledMessage);
+      return;
+    }
     setOrderState("placing");
     setOrderError(null);
     try {
+      const reservationTableId = activeReservation.tableId;
+      const tables = reservationTableId
+        ? await tableService.getByRestaurantId(restaurant.id)
+        : [];
+      const reservationTable = tables.find((table) => table.id === reservationTableId);
+      const tableNumber = Number(reservationTable?.tableNumber);
+
       const result = await orderService.placeOrder({
         customerId: payload.userId,
         customerName: payload.name || payload.username,
         restaurantId: Number(restaurant.id),
         restaurantName: restaurant.name,
         channel: "InPerson",
+        tableId: null,
+        tableNumber: Number.isFinite(tableNumber) ? tableNumber : 0,
         notes: notes.trim() || undefined,
         items: cartItems.map((item) => ({
           menuItemId: item.id,
@@ -172,11 +208,15 @@ export const RestaurantPreviewDialog = ({
           unitPrice: item.priceNumber ?? 0,
         })),
       });
+      const linkedReservation = await reservationService.linkOrder(activeReservation.id, result.id);
+      setActiveReservation(linkedReservation);
+      setHasActiveReservation(true);
       setOrderId(result.id);
+      setCart({});
       setOrderState("success");
     } catch (err) {
       setOrderState("error");
-      setOrderError(err instanceof Error ? err.message : "Error al realizar el pedido");
+      setOrderError(err instanceof Error ? err.message : "Error al realizar o vincular el pedido");
     }
   };
 
@@ -204,6 +244,7 @@ export const RestaurantPreviewDialog = ({
       });
       setReservationState("success");
       setReservationMessage(`Reserva #${reservation.id} creada para las ${reservation.reservationTime}.`);
+      setOrderError(null);
       setActiveReservation(reservation);
       setHasActiveReservation(true);
       const refreshed = await reservationService.getSuggestedTimes(restaurant.id, reservationDate, partySize);
@@ -223,6 +264,8 @@ export const RestaurantPreviewDialog = ({
       await reservationService.updateStatus(activeReservation.id, "Cancelada");
       setActiveReservation(null);
       setHasActiveReservation(false);
+      setCart({});
+      setOrderError(null);
       setReservationState("idle");
       setReservationMessage("Reserva cancelada. Ya puedes elegir otro horario.");
       const refreshed = await reservationService.getSuggestedTimes(restaurant.id, reservationDate, partySize);
@@ -300,6 +343,12 @@ export const RestaurantPreviewDialog = ({
               <div className="px-6 pb-6 pt-4">
                 <h3 className="mb-3 text-base font-semibold text-gray-900">Menú</h3>
 
+                {!canOrder && !menuLoading && (
+                  <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                    {orderDisabledMessage}
+                  </div>
+                )}
+
                 {menuLoading ? (
                   <div className="space-y-3">
                     {Array.from({ length: 3 }).map((_, i) => (
@@ -359,7 +408,8 @@ export const RestaurantPreviewDialog = ({
                                 <button
                                   type="button"
                                   onClick={() => addItem(item.id)}
-                                  className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-600 text-white hover:bg-blue-700"
+                                  disabled={!canOrder}
+                                  className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-600 text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300"
                                 >
                                   <Plus className="h-3.5 w-3.5" />
                                 </button>
@@ -393,6 +443,11 @@ export const RestaurantPreviewDialog = ({
                         {activeReservation?.reservationDate} · {activeReservation?.reservationTime} ·{" "}
                         {activeReservation?.partySize} {activeReservation?.partySize === 1 ? "persona" : "personas"}
                       </p>
+                      {activeReservation?.orderId && (
+                        <p className="mt-2 text-amber-700">
+                          Pedido #{activeReservation.orderId} asociado a esta reserva.
+                        </p>
+                      )}
                     </div>
                     <p>Puedes seguir viendo el menú, pero no crear otra reserva hasta cancelar o completar la actual.</p>
                     <button
@@ -539,7 +594,7 @@ export const RestaurantPreviewDialog = ({
                 <button
                   type="button"
                   onClick={handlePlaceOrder}
-                  disabled={orderState === "placing"}
+                  disabled={orderState === "placing" || !canOrder}
                   className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:opacity-60"
                 >
                   <ShoppingCart className="h-4 w-4" />

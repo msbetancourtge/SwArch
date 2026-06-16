@@ -24,6 +24,8 @@ export interface PlaceOrderData {
   restaurantId: number;
   restaurantName: string;
   channel: string;
+  tableId?: number | null;
+  tableNumber?: number;
   notes?: string;
   items: PlaceOrderItem[];
 }
@@ -277,7 +279,8 @@ export const orderService = {
 
     const payload = {
       restaurantId: data.restaurantId,
-      tableNumber: 0,
+      tableNumber: data.tableNumber ?? 0,
+      tableId: data.tableId ?? null,
       customerId: data.customerId,
       customerName: data.customerName,
       totalAmount: data.items.reduce((acc, item) => acc + item.unitPrice * item.quantity, 0),

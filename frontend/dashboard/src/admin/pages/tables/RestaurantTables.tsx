@@ -264,6 +264,16 @@ function isFutureReservation(reservation: Reservation, now: Date) {
 }
 
 function buildPresetCells(seats: number, originX = 0, originY = 0): LayoutCell[] {
+  if (seats === 2) {
+    const x = originX;
+    return [
+      { x, y: originY, type: "SEAT" as const },
+      { x, y: originY + 1, type: "TABLE" as const },
+      { x, y: originY + 2, type: "TABLE" as const },
+      { x, y: originY + 3, type: "SEAT" as const },
+    ];
+  }
+
   const tableBlocks = seats > 1 && seats % 2 === 1 ? seats - 1 : seats;
   const width = tableBlocks === 1 ? 1 : tableBlocks === 4 ? 2 : Math.ceil(tableBlocks / 2);
   const height = tableBlocks === 1 || tableBlocks === 2 ? 1 : 2;
@@ -336,16 +346,31 @@ export const TablesPage = () => {
 
   const selectedTable = tables.find((table) => table.id === selectedId) ?? null;
 
+  const futureReservationOrderIds = useMemo(() => {
+    const ids = new Set<number>();
+    for (const reservation of reservations) {
+      if (
+        reservation.orderId &&
+        ACTIVE_RESERVATION_STATUSES.includes(reservation.status) &&
+        isFutureReservation(reservation, now)
+      ) {
+        ids.add(reservation.orderId);
+      }
+    }
+    return ids;
+  }, [now, reservations]);
+
   const activeOrdersByTable = useMemo(() => {
     const map = new Map<string, KitchenOrder[]>();
     for (const order of kitchenOrders) {
       if (!ACTIVE_KITCHEN_STATUSES.includes(order.status)) continue;
+      if (futureReservationOrderIds.has(order.id)) continue;
       for (const key of kitchenOrderKeys(order)) {
         map.set(key, [...(map.get(key) ?? []), order]);
       }
     }
     return map;
-  }, [kitchenOrders]);
+  }, [futureReservationOrderIds, kitchenOrders]);
 
   const reservationsByTable = useMemo(() => {
     const map = new Map<number, { current: Reservation[]; future: Reservation[] }>();
