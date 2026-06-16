@@ -266,7 +266,7 @@ TLS is terminated at the API Gateway, the only publicly reachable container. It 
 
 ---
 
-## 5. Performance and Reliability
+## 5. Performance and Scalabillity
 
 ---
 
